@@ -33,7 +33,7 @@ $apiDoc = [
                 [
                     'method' => 'POST',
                     'path' => '/auth.php?action=register',
-                    'description' => 'Register new user',
+                    'description' => 'Register new user (admin only)',
                     'body' => [
                         'username' => 'string (required)',
                         'email' => 'string (required)',
@@ -46,6 +46,11 @@ $apiDoc = [
                     'method' => 'GET',
                     'path' => '/auth.php?action=check',
                     'description' => 'Check session status'
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/auth.php?action=user',
+                    'description' => 'Get current user info'
                 ]
             ]
         ],
@@ -88,6 +93,11 @@ $apiDoc = [
                         'status' => 'string (optional)',
                         'notes' => 'string (optional)'
                     ]
+                ],
+                [
+                    'method' => 'DELETE',
+                    'path' => '/orders.php?id={id}',
+                    'description' => 'Cancel order'
                 ]
             ]
         ],
@@ -105,6 +115,11 @@ $apiDoc = [
                     ]
                 ],
                 [
+                    'method' => 'GET',
+                    'path' => '/menu.php?id={id}',
+                    'description' => 'Get specific menu item'
+                ],
+                [
                     'method' => 'POST',
                     'path' => '/menu.php',
                     'description' => 'Create menu item',
@@ -115,6 +130,16 @@ $apiDoc = [
                         'description' => 'string (optional)',
                         'is_available' => 'boolean (optional)'
                     ]
+                ],
+                [
+                    'method' => 'PUT',
+                    'path' => '/menu.php?id={id}',
+                    'description' => 'Update menu item'
+                ],
+                [
+                    'method' => 'DELETE',
+                    'path' => '/menu.php?id={id}',
+                    'description' => 'Delete menu item'
                 ],
                 [
                     'method' => 'GET',
@@ -133,6 +158,11 @@ $apiDoc = [
                 ],
                 [
                     'method' => 'GET',
+                    'path' => '/kitchen.php?action=queue',
+                    'description' => 'Get kitchen queue'
+                ],
+                [
+                    'method' => 'GET',
                     'path' => '/kitchen.php?action=stats',
                     'description' => 'Get kitchen statistics'
                 ],
@@ -147,6 +177,15 @@ $apiDoc = [
                     'path' => '/kitchen.php?action=complete',
                     'description' => 'Mark order as ready',
                     'body' => ['order_id' => 'integer (required)']
+                ],
+                [
+                    'method' => 'PUT',
+                    'path' => '/kitchen.php',
+                    'description' => 'Update order item status',
+                    'body' => [
+                        'item_id' => 'integer (required)',
+                        'status' => 'string (required)'
+                    ]
                 ]
             ]
         ],
@@ -156,17 +195,35 @@ $apiDoc = [
                 [
                     'method' => 'GET',
                     'path' => '/dashboard.php?action=stats',
-                    'description' => 'Get dashboard statistics'
+                    'description' => 'Get dashboard statistics',
+                    'params' => [
+                        'date' => 'date (optional): Y-m-d format'
+                    ]
                 ],
                 [
                     'method' => 'GET',
                     'path' => '/dashboard.php?action=sales',
-                    'description' => 'Get sales trend'
+                    'description' => 'Get sales trend',
+                    'params' => [
+                        'days' => 'integer (optional)'
+                    ]
                 ],
                 [
                     'method' => 'GET',
                     'path' => '/dashboard.php?action=top_menu',
-                    'description' => 'Get top selling menu'
+                    'description' => 'Get top selling menu',
+                    'params' => [
+                        'date' => 'date (optional): Y-m-d format',
+                        'limit' => 'integer (optional)'
+                    ]
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/dashboard.php?action=recent_orders',
+                    'description' => 'Get recent orders',
+                    'params' => [
+                        'limit' => 'integer (optional)'
+                    ]
                 ]
             ]
         ],
@@ -176,7 +233,26 @@ $apiDoc = [
                 [
                     'method' => 'GET',
                     'path' => '/reports.php?action=summary',
-                    'description' => 'Get sales summary report'
+                    'description' => 'Get sales summary report',
+                    'params' => [
+                        'start_date' => 'date (optional): Y-m-d format',
+                        'end_date' => 'date (optional): Y-m-d format'
+                    ]
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/reports.php?action=sales_trend',
+                    'description' => 'Get sales trend report'
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/reports.php?action=menu_performance',
+                    'description' => 'Get menu performance report'
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/reports.php?action=category_breakdown',
+                    'description' => 'Get category breakdown report'
                 ],
                 [
                     'method' => 'GET',
@@ -186,7 +262,11 @@ $apiDoc = [
                 [
                     'method' => 'GET',
                     'path' => '/reports.php?action=export&format=csv',
-                    'description' => 'Export report to CSV'
+                    'description' => 'Export report to CSV',
+                    'params' => [
+                        'start_date' => 'date (optional): Y-m-d format',
+                        'end_date' => 'date (optional): Y-m-d format'
+                    ]
                 ]
             ]
         ],
@@ -196,17 +276,34 @@ $apiDoc = [
                 [
                     'method' => 'GET',
                     'path' => '/tables.php',
-                    'description' => 'Get all tables'
+                    'description' => 'Get all tables',
+                    'params' => [
+                        'status' => 'string (optional): available|occupied|reserved'
+                    ]
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/tables.php?id={id}',
+                    'description' => 'Get specific table'
                 ],
                 [
                     'method' => 'POST',
                     'path' => '/tables.php',
-                    'description' => 'Create new table'
+                    'description' => 'Create new table',
+                    'body' => [
+                        'table_number' => 'string (required)',
+                        'capacity' => 'integer (required)'
+                    ]
                 ],
                 [
                     'method' => 'PUT',
                     'path' => '/tables.php?id={id}',
                     'description' => 'Update table'
+                ],
+                [
+                    'method' => 'DELETE',
+                    'path' => '/tables.php?id={id}',
+                    'description' => 'Delete table'
                 ]
             ]
         ],
@@ -226,7 +323,17 @@ $apiDoc = [
                 [
                     'method' => 'GET',
                     'path' => '/payments.php?action=history',
-                    'description' => 'Get payment history'
+                    'description' => 'Get payment history',
+                    'params' => [
+                        'order_id' => 'integer (optional)',
+                        'start_date' => 'date (optional): Y-m-d format',
+                        'end_date' => 'date (optional): Y-m-d format'
+                    ]
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/payments.php?action=methods',
+                    'description' => 'Get available payment methods'
                 ]
             ]
         ],
@@ -239,13 +346,23 @@ $apiDoc = [
                     'description' => 'Get all settings'
                 ],
                 [
+                    'method' => 'GET',
+                    'path' => '/settings.php?key={key}',
+                    'description' => 'Get specific setting'
+                ],
+                [
                     'method' => 'POST',
                     'path' => '/settings.php',
-                    'description' => 'Update setting',
+                    'description' => 'Update or create setting',
                     'body' => [
                         'key' => 'string (required)',
                         'value' => 'string (required)'
                     ]
+                ],
+                [
+                    'method' => 'PUT',
+                    'path' => '/settings.php',
+                    'description' => 'Update or create setting'
                 ]
             ]
         ]
@@ -268,10 +385,14 @@ $apiDoc = [
         201 => 'Created - Resource created successfully',
         400 => 'Bad Request - Invalid input',
         401 => 'Unauthorized - Authentication required',
+        403 => 'Forbidden - Insufficient permissions',
         404 => 'Not Found - Resource not found',
         405 => 'Method Not Allowed',
+        429 => 'Too Many Requests - Rate limit exceeded',
         500 => 'Internal Server Error'
-    ]
+    ],
+    'authentication' => 'Most endpoints require session authentication. Use /auth.php?action=login to obtain a session.',
+    'note' => 'For POST/PUT requests, send data as JSON in the request body.'
 ];
 
 echo json_encode($apiDoc, JSON_PRETTY_PRINT);
