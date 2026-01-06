@@ -1,0 +1,122 @@
+# Stasiun Kerang - Git Ignore Rules
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Composer
+/vendor/
+composer.lock
+composer.phar
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+/logs/
+error_log
+debug.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Cache files
+cache/
+*.cache
+.phpunit.cache
+
+# Upload directories
+uploads/
+/uploads/*
+!uploads/.gitkeep
+
+# Backup files
+*.sql.gz
+*.sql.zip
+backup/
+*.bak
+*.backup
+
+# Session files
+sessions/
+*.sess
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Node modules (if using npm for frontend tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build directories
+dist/
+build/
+.cache/
+
+# Test coverage
+coverage/
+.phpunit.result.cache
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Database dumps
+*.sql
+!schema.sql
+!database.sql
+dumps/
+
+# Sensitive configuration
+config/local.php
+config/production.php
+config/secrets.php
+
+# Generated documentation
+docs/generated/
+
+# Compiled assets
+public/css/*.css.map
+public/js/*.js.map
+
+# PHP-specific
+*.php~
+.phpintel/
+.php_cs.cache
+
+# Security
+*.key
+*.pem
+*.crt
+certificates/
+
+# Miscellaneous
+.htaccess.backup
+robots.txt.backup
+sitemap.xml.backup
+
+# Keep empty directories
+!**/.gitkeep
