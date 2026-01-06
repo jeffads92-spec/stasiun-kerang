@@ -5,9 +5,28 @@
  */
 
 header('Content-Type: application/json');
-require_once '../config/cors.php';
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
 require_once '../config/database.php';
-require_once '../middleware/auth.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+// Cek otentikasi
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Unauthorized',
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    exit();
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -42,13 +61,22 @@ try {
     sendResponse(500, false, 'Server error: ' . $e->getMessage());
 }
 
+function generatePaymentNumber($pdo) {
+    $prefix = 'PAY';
+    $date = date('Ymd');
+    
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*) as count 
+        FROM payments 
+        WHERE DATE(created_at) = CURDATE()
+    ");
+    $stmt->execute();
+    $count = $stmt->fetch()['count'] + 1;
+    
+    return $prefix . '-' . $date . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+}
+
 function processPayment($pdo) {
-    // Only authenticated users can process payments
-    requireAuth();
-    
-    // Only admin and cashier can process payments
-    requireRole(['admin', 'cashier']);
-    
     $data = json_decode(file_get_contents('php://input'), true);
     
     $required = ['order_id', 'amount', 'payment_method'];
@@ -57,13 +85,6 @@ function processPayment($pdo) {
             sendResponse(400, false, "Field {$field} is required");
             return;
         }
-    }
-    
-    // Validate payment method
-    $validMethods = ['cash', 'card', 'qr_code', 'transfer'];
-    if (!in_array($data['payment_method'], $validMethods)) {
-        sendResponse(400, false, 'Invalid payment method');
-        return;
     }
     
     try {
@@ -80,18 +101,7 @@ function processPayment($pdo) {
             return;
         }
         
-        // Check if order is already paid
-        if ($order['status'] === 'completed') {
-            $stmt = $pdo->prepare("SELECT * FROM payments WHERE order_id = ?");
-            $stmt->execute([$data['order_id']]);
-            if ($stmt->fetch()) {
-                $pdo->rollBack();
-                sendResponse(400, false, 'Order is already paid');
-                return;
-            }
-        }
-        
-        // Verify amount matches order total (allow small difference for rounding)
+        // Verify amount matches order total
         if (abs($data['amount'] - $order['total']) > 0.01) {
             $pdo->rollBack();
             sendResponse(400, false, 'Payment amount does not match order total');
@@ -147,21 +157,9 @@ function processPayment($pdo) {
 }
 
 function getPaymentHistory($pdo) {
-    // Only authenticated users can view payment history
-    requireAuth();
-    
-    // Only admin, cashier can view payment history
-    requireRole(['admin', 'cashier']);
-    
     $orderId = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    
-    // Validate dates
-    if (!strtotime($startDate) || !strtotime($endDate)) {
-        sendResponse(400, false, 'Invalid date format');
-        return;
-    }
     
     try {
         if ($orderId > 0) {
@@ -192,25 +190,7 @@ function getPaymentHistory($pdo) {
             $stmt->execute([$startDate, $endDate]);
             $payments = $stmt->fetchAll();
             
-            // Calculate totals
-            $stmt = $pdo->prepare("
-                SELECT 
-                    COALESCE(SUM(amount), 0) as total_amount,
-                    COUNT(*) as total_transactions
-                FROM payments
-                WHERE DATE(created_at) BETWEEN ? AND ?
-            ");
-            $stmt->execute([$startDate, $endDate]);
-            $totals = $stmt->fetch();
-            
-            sendResponse(200, true, 'Payment history retrieved', [
-                'payments' => $payments,
-                'summary' => $totals,
-                'period' => [
-                    'start_date' => $startDate,
-                    'end_date' => $endDate
-                ]
-            ]);
+            sendResponse(200, true, 'Payment history retrieved', ['payments' => $payments]);
         }
         
     } catch (PDOException $e) {
@@ -219,9 +199,8 @@ function getPaymentHistory($pdo) {
 }
 
 function getPaymentMethods($pdo) {
-    // This endpoint doesn't require authentication (public)
     try {
-        // Get enabled payment methods from settings (simulated)
+        // Get enabled payment methods from settings
         $methods = [
             ['id' => 'cash', 'name' => 'Cash', 'enabled' => true],
             ['id' => 'card', 'name' => 'Debit/Credit Card', 'enabled' => true],
@@ -234,30 +213,6 @@ function getPaymentMethods($pdo) {
     } catch (Exception $e) {
         sendResponse(500, false, 'Error: ' . $e->getMessage());
     }
-}
-
-function generatePaymentNumber($pdo) {
-    $date = date('Ymd');
-    
-    // Get the last payment number for today
-    $stmt = $pdo->prepare("
-        SELECT MAX(payment_number) as last_payment 
-        FROM payments 
-        WHERE DATE(created_at) = CURDATE()
-    ");
-    $stmt->execute();
-    $result = $stmt->fetch();
-    
-    if ($result && $result['last_payment']) {
-        // Extract the numeric part and increment
-        $parts = explode('-', $result['last_payment']);
-        $lastNumber = intval(end($parts));
-        $newNumber = $lastNumber + 1;
-    } else {
-        $newNumber = 1;
-    }
-    
-    return 'PAY-' . $date . '-' . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
 }
 
 function sendResponse($code, $success, $message, $data = null) {
