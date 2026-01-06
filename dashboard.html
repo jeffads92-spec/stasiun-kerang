@@ -1,586 +1,235 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Stasiun Kerang</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<!-- Ganti bagian <script> di dashboard.html dengan ini -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+    // Check login
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+        window.location.href = 'index.html';
+    }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            display: flex;
-        }
+    const API_BASE = '/api';
 
-        .sidebar {
-            width: 260px;
-            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
-            height: 100vh;
-            position: fixed;
-            left: 0;
-            top: 0;
-            overflow-y: auto;
-            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
-        }
+    // Set user info
+    document.getElementById('userName').textContent = user.username;
+    document.getElementById('userRole').textContent = user.role;
+    document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
 
-        .sidebar-header {
-            padding: 25px 20px;
-            text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .sidebar-header h2 {
-            color: white;
-            font-size: 24px;
-            margin-top: 10px;
-        }
-
-        .logo-icon {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
-
-        .sidebar-menu {
-            padding: 20px 0;
-        }
-
-        .menu-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 25px;
-            color: rgba(255,255,255,0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .menu-item:hover {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            padding-left: 30px;
-        }
-
-        .menu-item.active {
-            background: rgba(255,255,255,0.15);
-            border-left: 4px solid #4CAF50;
-            color: white;
-        }
-
-        .menu-item i {
-            font-size: 18px;
-            width: 30px;
-        }
-
-        .main-content {
-            margin-left: 260px;
-            width: calc(100% - 260px);
-            min-height: 100vh;
-        }
-
-        .topbar {
-            background: white;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-
-        .topbar-left h1 {
-            font-size: 28px;
-            color: #333;
-        }
-
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            background: #f8f9fa;
-            padding: 10px 20px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .user-info:hover {
-            background: #e9ecef;
-            transform: translateY(-2px);
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: rgba(0,0,0,0.03);
-            border-radius: 0 0 0 100%;
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-        }
-
-        .stat-icon.blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .stat-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .stat-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .stat-icon.purple { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-
-        .stat-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            color: #999;
-            font-size: 14px;
-        }
-
-        .chart-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 25px;
-            margin-bottom: 30px;
-        }
-
-        .chart-card {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .chart-header h3 {
-            font-size: 18px;
-            color: #333;
-        }
-
-        .recent-orders {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        th {
-            background: #f8f9fa;
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-            color: #666;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-block;
-        }
-
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-preparing { background: #cfe2ff; color: #084298; }
-        .badge-ready { background: #d1e7dd; color: #0f5132; }
-        .badge-completed { background: #d3d3d3; color: #383838; }
-
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
+    // Fetch Dashboard Stats
+    async function fetchDashboardStats() {
+        try {
+            const response = await fetch(`${API_BASE}/dashboard.php?action=stats`);
+            const result = await response.json();
+            
+            if (result.success) {
+                const data = result.data;
+                document.getElementById('totalOrders').textContent = data.total_orders || 0;
+                document.getElementById('totalRevenue').textContent = formatCurrency(data.total_revenue || 0);
+                document.getElementById('activeOrders').textContent = data.active_orders || 0;
+                document.getElementById('tableOccupancy').textContent = data.table_occupancy + '%' || '0%';
             }
-            .main-content {
-                margin-left: 0;
-                width: 100%;
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+            // Use dummy data if API fails
+            generateDashboardData();
+        }
+    }
+
+    // Fetch Sales Trend
+    async function fetchSalesTrend() {
+        try {
+            const response = await fetch(`${API_BASE}/dashboard.php?action=sales&days=7`);
+            const result = await response.json();
+            
+            if (result.success && result.data.trend) {
+                updateSalesChart(result.data.trend);
+                return;
             }
-            .chart-grid {
-                grid-template-columns: 1fr;
+        } catch (error) {
+            console.error('Error fetching sales trend:', error);
+        }
+        // Use dummy data if API fails
+        updateSalesChart([
+            {date: 'Sen', revenue: 2500000},
+            {date: 'Sel', revenue: 3200000},
+            {date: 'Rab', revenue: 2800000},
+            {date: 'Kam', revenue: 4100000},
+            {date: 'Jum', revenue: 3900000},
+            {date: 'Sab', revenue: 5200000},
+            {date: 'Min', revenue: 4800000}
+        ]);
+    }
+
+    // Fetch Top Menu
+    async function fetchTopMenu() {
+        try {
+            const response = await fetch(`${API_BASE}/dashboard.php?action=top_menu&limit=4`);
+            const result = await response.json();
+            
+            if (result.success && result.data.top_menu) {
+                renderTopMenu(result.data.top_menu);
+                return;
             }
+        } catch (error) {
+            console.error('Error fetching top menu:', error);
         }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="logo-icon">🦐</div>
-            <h2>Stasiun Kerang</h2>
-        </div>
-        <nav class="sidebar-menu">
-            <a href="dashboard.html" class="menu-item active">
-                <i class="fas fa-tachometer-alt"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="orders.html" class="menu-item">
-                <i class="fas fa-shopping-cart"></i>
-                <span>Orders</span>
-            </a>
-            <a href="menu-management.html" class="menu-item">
-                <i class="fas fa-utensils"></i>
-                <span>Menu</span>
-            </a>
-            <a href="kitchen.html" class="menu-item">
-                <i class="fas fa-fire"></i>
-                <span>Kitchen</span>
-            </a>
-            <a href="reports.html" class="menu-item">
-                <i class="fas fa-chart-line"></i>
-                <span>Laporan</span>
-            </a>
-            <a href="settings.html" class="menu-item">
-                <i class="fas fa-cog"></i>
-                <span>Pengaturan</span>
-            </a>
-            <a href="#" class="menu-item" onclick="logout()">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
-            </a>
-        </nav>
-    </div>
-
-    <div class="main-content">
-        <div class="topbar">
-            <div class="topbar-left">
-                <h1>Dashboard</h1>
-            </div>
-            <div class="topbar-right">
-                <div class="user-info" onclick="showProfile()">
-                    <div class="user-avatar" id="userAvatar">A</div>
-                    <div>
-                        <div style="font-weight: 600; color: #333;" id="userName">Admin</div>
-                        <div style="font-size: 12px; color: #999;" id="userRole">Administrator</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="content">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value" id="totalOrders">0</div>
-                            <div class="stat-label">Total Orders Hari Ini</div>
-                        </div>
-                        <div class="stat-icon blue">
-                            <i class="fas fa-shopping-cart"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value" id="totalRevenue">Rp 0</div>
-                            <div class="stat-label">Revenue Hari Ini</div>
-                        </div>
-                        <div class="stat-icon green">
-                            <i class="fas fa-dollar-sign"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value" id="activeOrders">0</div>
-                            <div class="stat-label">Orders Aktif</div>
-                        </div>
-                        <div class="stat-icon orange">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div>
-                            <div class="stat-value" id="tableOccupancy">0%</div>
-                            <div class="stat-label">Okupansi Meja</div>
-                        </div>
-                        <div class="stat-icon purple">
-                            <i class="fas fa-table"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="chart-grid">
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3>Penjualan Mingguan</h3>
-                        <select style="padding: 8px; border-radius: 6px; border: 1px solid #e0e0e0;">
-                            <option>Minggu Ini</option>
-                            <option>Bulan Ini</option>
-                            <option>Tahun Ini</option>
-                        </select>
-                    </div>
-                    <canvas id="salesChart" style="max-height: 300px;"></canvas>
-                </div>
-
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <h3>Top Menu</h3>
-                    </div>
-                    <div id="topMenu" style="margin-top: 20px;"></div>
-                </div>
-            </div>
-
-            <div class="recent-orders">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <h3>Orders Terbaru</h3>
-                    <a href="orders.html" class="btn btn-primary">Lihat Semua</a>
-                </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>No Order</th>
-                                <th>Meja</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Status</th>
-                                <th>Waktu</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ordersTable">
-                            <tr>
-                                <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
-                                    Tidak ada order hari ini
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script>
-        // Check login
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) {
-            window.location.href = 'index.html';
-        }
-
-        // Set user info
-        document.getElementById('userName').textContent = user.username;
-        document.getElementById('userRole').textContent = user.role;
-        document.getElementById('userAvatar').textContent = user.username.charAt(0).toUpperCase();
-
-        // Generate dummy data
-        function generateDashboardData() {
-            const orders = Math.floor(Math.random() * 50) + 20;
-            const revenue = orders * (Math.random() * 150000 + 50000);
-            const active = Math.floor(Math.random() * 15) + 5;
-            const occupancy = Math.floor((active / 20) * 100);
-
-            document.getElementById('totalOrders').textContent = orders;
-            document.getElementById('totalRevenue').textContent = formatCurrency(revenue);
-            document.getElementById('activeOrders').textContent = active;
-            document.getElementById('tableOccupancy').textContent = occupancy + '%';
-        }
-
-        function formatCurrency(amount) {
-            return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        }
-
-        // Sales Chart
-        const ctx = document.getElementById('salesChart').getContext('2d');
-        const salesChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-                datasets: [{
-                    label: 'Penjualan',
-                    data: [2500000, 3200000, 2800000, 4100000, 3900000, 5200000, 4800000],
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + 'jt';
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Top Menu
-        const topMenuData = [
+        // Use dummy data if API fails
+        renderTopMenu([
             { name: 'Kerang Asam Manis', sales: 45, color: '#667eea' },
             { name: 'Udang Goreng Mentega', sales: 38, color: '#11998e' },
             { name: 'Cumi Saus Padang', sales: 32, color: '#f5576c' },
             { name: 'Kepiting Saos Tiram', sales: 28, color: '#4facfe' }
-        ];
+        ]);
+    }
 
-        const topMenuHtml = topMenuData.map((item, index) => `
+    // Fetch Recent Orders
+    async function fetchRecentOrders() {
+        try {
+            const response = await fetch(`${API_BASE}/orders.php?limit=5`);
+            const result = await response.json();
+            
+            if (result.success && result.data.orders) {
+                renderRecentOrders(result.data.orders);
+                return;
+            }
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        }
+        // Use dummy data if API fails
+        renderRecentOrders([
+            { order_number: 'ORD-20260106-0001', table_number: 'T01', total_items: 3, total: 285000, status: 'completed', created_at: '10:30' },
+            { order_number: 'ORD-20260106-0002', table_number: 'T03', total_items: 5, total: 520000, status: 'preparing', created_at: '11:15' },
+            { order_number: 'ORD-20260106-0003', table_number: 'T05', total_items: 2, total: 180000, status: 'ready', created_at: '11:45' }
+        ]);
+    }
+
+    function renderTopMenu(menuData) {
+        const maxSales = Math.max(...menuData.map(m => m.sales || m.quantity));
+        const topMenuHtml = menuData.map((item, index) => `
             <div style="margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="font-weight: 600; color: #333;">${item.name}</span>
-                    <span style="color: #999;">${item.sales} porsi</span>
+                    <span style="font-weight: 600; color: #333;">${item.name || item.menu_name}</span>
+                    <span style="color: #999;">${item.sales || item.quantity} porsi</span>
                 </div>
                 <div style="background: #f0f0f0; height: 8px; border-radius: 10px; overflow: hidden;">
-                    <div style="background: ${item.color}; height: 100%; width: ${(item.sales / 45) * 100}%; border-radius: 10px;"></div>
+                    <div style="background: ${item.color || '#667eea'}; height: 100%; width: ${((item.sales || item.quantity) / maxSales) * 100}%; border-radius: 10px;"></div>
                 </div>
             </div>
         `).join('');
         document.getElementById('topMenu').innerHTML = topMenuHtml;
+    }
 
-        // Recent Orders
-        const recentOrders = [
-            { no: 'ORD-20260106-0001', table: 'T01', items: 3, total: 285000, status: 'completed', time: '10:30' },
-            { no: 'ORD-20260106-0002', table: 'T03', items: 5, total: 520000, status: 'preparing', time: '11:15' },
-            { no: 'ORD-20260106-0003', table: 'T05', items: 2, total: 180000, status: 'ready', time: '11:45' }
-        ];
+    function renderRecentOrders(orders) {
+        if (orders.length === 0) {
+            document.getElementById('ordersTable').innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: #999;">
+                        Tidak ada order hari ini
+                    </td>
+                </tr>
+            `;
+            return;
+        }
 
-        const ordersHtml = recentOrders.map(order => `
+        const ordersHtml = orders.map(order => `
             <tr>
-                <td><strong>${order.no}</strong></td>
-                <td>${order.table}</td>
-                <td>${order.items} items</td>
+                <td><strong>${order.order_number}</strong></td>
+                <td>${order.table_number}</td>
+                <td>${order.total_items} items</td>
                 <td><strong>${formatCurrency(order.total)}</strong></td>
                 <td><span class="badge badge-${order.status}">${order.status}</span></td>
-                <td>${order.time}</td>
+                <td>${formatTime(order.created_at)}</td>
             </tr>
         `).join('');
         document.getElementById('ordersTable').innerHTML = ordersHtml;
+    }
 
-        generateDashboardData();
+    function updateSalesChart(trendData) {
+        const labels = trendData.map(d => d.date);
+        const data = trendData.map(d => d.revenue);
+        
+        salesChart.data.labels = labels;
+        salesChart.data.datasets[0].data = data;
+        salesChart.update();
+    }
 
-        function logout() {
-            if (confirm('Apakah Anda yakin ingin logout?')) {
-                localStorage.removeItem('user');
-                window.location.href = 'index.html';
+    function formatCurrency(amount) {
+        return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    function formatTime(datetime) {
+        if (!datetime) return '-';
+        const date = new Date(datetime);
+        return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function generateDashboardData() {
+        const orders = Math.floor(Math.random() * 50) + 20;
+        const revenue = orders * (Math.random() * 150000 + 50000);
+        const active = Math.floor(Math.random() * 15) + 5;
+        const occupancy = Math.floor((active / 20) * 100);
+
+        document.getElementById('totalOrders').textContent = orders;
+        document.getElementById('totalRevenue').textContent = formatCurrency(revenue);
+        document.getElementById('activeOrders').textContent = active;
+        document.getElementById('tableOccupancy').textContent = occupancy + '%';
+    }
+
+    // Sales Chart
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    const salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Penjualan',
+                data: [],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Rp ' + (value / 1000000).toFixed(1) + 'jt';
+                        }
+                    }
+                }
             }
         }
+    });
 
-        function showProfile() {
-            alert('Fitur profil akan segera hadir!');
+    function logout() {
+        if (confirm('Apakah Anda yakin ingin logout?')) {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
         }
-    </script>
-</body>
-</html>
+    }
+
+    function showProfile() {
+        alert('Fitur profil akan segera hadir!');
+    }
+
+    // Initial load
+    fetchDashboardStats();
+    fetchSalesTrend();
+    fetchTopMenu();
+    fetchRecentOrders();
+
+    // Auto refresh every 30 seconds
+    setInterval(() => {
+        fetchDashboardStats();
+        fetchRecentOrders();
+    }, 30000);
+</script>
