@@ -1,6 +1,0 @@
-# Nixpacks Configuration for Railway
-[phases.setup]
-nixPkgs = ["php82"]
-
-[start]
-cmd = "php server.php"
