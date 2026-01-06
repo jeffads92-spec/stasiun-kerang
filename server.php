@@ -1,19 +1,13 @@
 <?php
-// server.php - Main router
+// server.php - Router sederhana
 $request = $_SERVER['REQUEST_URI'];
+$request = strtok($request, '?'); // Hapus query string
 
-// Remove query string
-$request_path = parse_url($request, PHP_URL_PATH);
-$request = $request_path ?: $request;
-
-// API routing
+// Jika request ke API, arahkan ke folder api
 if (strpos($request, '/api/') === 0) {
-    // Remove '/api' prefix
-    $api_path = substr($request, 4);
-    // Map to the actual API file
-    $api_file = __DIR__ . '/api' . $api_path;
-    if (file_exists($api_file)) {
-        require_once $api_file;
+    $apiFile = __DIR__ . '/api' . substr($request, 4);
+    if (file_exists($apiFile)) {
+        require $apiFile;
         exit;
     } else {
         http_response_code(404);
@@ -22,45 +16,34 @@ if (strpos($request, '/api/') === 0) {
     }
 }
 
-// Map routes for static pages
-$routes = [
-    '/' => 'index.html',
-    '/dashboard' => 'dashboard.html',
-    '/orders' => 'orders.html',
-    '/menu-management' => 'menu-management.html',
-    '/kitchen' => 'kitchen.html',
-    '/reports' => 'reports.html',
-    '/settings' => 'settings.html'
-];
-
-// Check for direct HTML file
+// Jika request ke file HTML, sajikan file HTML
 if (preg_match('/\.html$/', $request)) {
     $file = __DIR__ . $request;
     if (file_exists($file)) {
-        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Type: text/html');
         readfile($file);
         exit;
     }
 }
 
-// Check route mapping
-if (isset($routes[$request])) {
-    $file = __DIR__ . '/' . $routes[$request];
+// Routing untuk halaman utama
+if ($request === '/' || $request === '') {
+    $file = __DIR__ . '/index.html';
     if (file_exists($file)) {
-        header('Content-Type: text/html; charset=utf-8');
+        header('Content-Type: text/html');
         readfile($file);
         exit;
     }
 }
 
-// Default to index.html
-if (file_exists(__DIR__ . '/index.html')) {
-    header('Content-Type: text/html; charset=utf-8');
-    readfile(__DIR__ . '/index.html');
+// Jika tidak ada file, coba cari file dengan ekstensi .html
+$file = __DIR__ . $request . '.html';
+if (file_exists($file)) {
+    header('Content-Type: text/html');
+    readfile($file);
     exit;
 }
 
-// 404
-header('HTTP/1.0 404 Not Found');
-echo 'Page not found';
-?>
+// Jika tidak ditemukan, kembalikan 404
+http_response_code(404);
+echo '404 - Page not found';
