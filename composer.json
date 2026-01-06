@@ -1,46 +1,9 @@
 {
     "name": "jeffads92-spec/stasiun-kerang",
-    "description": "Restaurant Management System - Complete POS and kitchen management solution",
+    "description": "Restaurant Management System",
     "type": "project",
-    "keywords": [
-        "restaurant",
-        "pos",
-        "management",
-        "kitchen",
-        "ordering",
-        "payment"
-    ],
     "license": "MIT",
-    "authors": [
-        {
-            "name": "jeffads92-spec",
-            "email": "info@stasiun-kerang.com"
-        }
-    ],
-    "require": {
-        "php": "^7.4|^8.0|^8.1|^8.2",
-        "ext-pdo": "*",
-        "ext-pdo_mysql": "*",
-        "ext-mbstring": "*",
-        "ext-json": "*"
-    },
-    "require-dev": {},
-    "autoload": {
-        "files": [
-            "config/database.php"
-        ]
-    },
-    "scripts": {
-        "post-install-cmd": [
-            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-        ]
-    },
     "config": {
-        "optimize-autoloader": true,
-        "preferred-install": "dist",
-        "sort-packages": true,
         "platform-check": false
-    },
-    "minimum-stability": "stable",
-    "prefer-stable": true
+    }
 }
