@@ -5,16 +5,12 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
+require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once '../middleware/auth.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
+// Only admin and cashier can access reports
+requireRole(['admin', 'cashier']);
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'summary';
 
@@ -52,6 +48,12 @@ function getSalesReport($pdo) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-7 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
     
+    // Validate dates
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
+    
     try {
         // Total statistics
         $stmt = $pdo->prepare("
@@ -68,7 +70,7 @@ function getSalesReport($pdo) {
         $summary = $stmt->fetch();
         
         // Compare with previous period
-        $daysDiff = (strtotime($endDate) - strtotime($startDate)) / 86400;
+        $daysDiff = (strtotime($endDate) - strtotime($startDate)) / 86400 + 1;
         $prevStartDate = date('Y-m-d', strtotime($startDate . " -{$daysDiff} days"));
         $prevEndDate = date('Y-m-d', strtotime($endDate . " -{$daysDiff} days"));
         
@@ -82,14 +84,19 @@ function getSalesReport($pdo) {
         $prevRevenue = $stmt->fetch()['prev_revenue'];
         
         $revenueChange = $prevRevenue > 0 ? 
-            (($summary['total_revenue'] - $prevRevenue) / $prevRevenue) * 100 : 0;
+            (($summary['total_revenue'] - $prevRevenue) / $prevRevenue) * 100 : 
+            ($summary['total_revenue'] > 0 ? 100 : 0);
         
         sendResponse(200, true, 'Sales report generated', [
             'summary' => $summary,
             'revenue_change' => round($revenueChange, 2),
             'period' => [
                 'start_date' => $startDate,
-                'end_date' => $endDate
+                'end_date' => $endDate,
+                'previous_period' => [
+                    'start_date' => $prevStartDate,
+                    'end_date' => $prevEndDate
+                ]
             ]
         ]);
         
@@ -101,6 +108,12 @@ function getSalesReport($pdo) {
 function getSalesTrend($pdo) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
+    
+    // Validate dates
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
     
     try {
         $stmt = $pdo->prepare("
@@ -129,6 +142,15 @@ function getMenuPerformance($pdo) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
     $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
+    
+    // Validate dates and limit
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
+    if ($limit < 1 || $limit > 100) {
+        $limit = 10;
+    }
     
     try {
         $stmt = $pdo->prepare("
@@ -163,6 +185,12 @@ function getCategoryBreakdown($pdo) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
     
+    // Validate dates
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
+    
     try {
         $stmt = $pdo->prepare("
             SELECT 
@@ -194,6 +222,18 @@ function getTransactions($pdo) {
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
     $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
     $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+    
+    // Validate dates, limit and offset
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
+    if ($limit < 1 || $limit > 1000) {
+        $limit = 100;
+    }
+    if ($offset < 0) {
+        $offset = 0;
+    }
     
     try {
         $stmt = $pdo->prepare("
@@ -239,6 +279,18 @@ function exportReport($pdo) {
     $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
     $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
     $format = isset($_GET['format']) ? $_GET['format'] : 'csv';
+    
+    // Validate dates
+    if (!strtotime($startDate) || !strtotime($endDate)) {
+        sendResponse(400, false, 'Invalid date format');
+        return;
+    }
+    
+    // Validate format
+    if (!in_array($format, ['csv', 'json'])) {
+        sendResponse(400, false, 'Invalid format. Use csv or json');
+        return;
+    }
     
     try {
         $stmt = $pdo->prepare("
