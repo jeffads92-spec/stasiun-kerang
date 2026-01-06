@@ -1,34 +1,14 @@
-# Railway.app Configuration for Stasiun Kerang Restaurant System
+# Railway Configuration for Stasiun Kerang
 
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "NIXPACKS"
 
 [deploy]
-startCommand = "apache2-foreground"
+startCommand = "php -S 0.0.0.0:$PORT"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
 
 [[deploy.healthcheck]]
 path = "/"
-port = 80
 interval = 30
 timeout = 10
-
-[env]
-# These will be set in Railway dashboard
-# DB_HOST = "mysql.railway.internal"
-# DB_PORT = "3306"
-# DB_DATABASE = "railway"
-# DB_USERNAME = "root"
-# DB_PASSWORD = "your_password"
-
-[services]
-# Main application service
-[services.app]
-source = "."
-port = 80
-
-[services.app.env]
-APP_ENV = "production"
-TIMEZONE = "Asia/Jakarta"
