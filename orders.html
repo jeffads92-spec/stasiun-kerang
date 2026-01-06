@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders - Stasiun Kerang</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; }
+        
+        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); height: 100vh; position: fixed; left: 0; top: 0; overflow-y: auto; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
+        .sidebar-header { padding: 25px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-header h2 { color: white; font-size: 24px; margin-top: 10px; }
+        .logo-icon { font-size: 48px; margin-bottom: 10px; }
+        .sidebar-menu { padding: 20px 0; }
+        .menu-item { display: flex; align-items: center; padding: 15px 25px; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s ease; cursor: pointer; }
+        .menu-item:hover { background: rgba(255,255,255,0.1); color: white; padding-left: 30px; }
+        .menu-item.active { background: rgba(255,255,255,0.15); border-left: 4px solid #4CAF50; color: white; }
+        .menu-item i { font-size: 18px; width: 30px; }
+        
+        .main-content { margin-left: 260px; width: calc(100% - 260px); min-height: 100vh; }
+        .topbar { background: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .topbar h1 { font-size: 28px; color: #333; }
+        
+        .content { padding: 30px; }
+        
+        .action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        
+        .filter-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .filter-btn { padding: 10px 20px; border: 2px solid #e0e0e0; background: white; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; }
+        .filter-btn.active { border-color: #667eea; background: #667eea; color: white; }
+        
+        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .order-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transition: all 0.3s ease; position: relative; overflow: hidden; }
+        .order-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        
+        .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .order-number { font-size: 18px; font-weight: bold; color: #333; }
+        .order-time { font-size: 12px; color: #999; }
+        
+        .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-preparing { background: #cfe2ff; color: #084298; }
+        .badge-ready { background: #d1e7dd; color: #0f5132; }
+        .badge-completed { background: #d3d3d3; color: #383838; }
+        .badge-cancelled { background: #f8d7da; color: #721c24; }
+        
+        .order-info { margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .info-label { color: #666; font-size: 14px; }
+        .info-value { color: #333; font-weight: 600; }
+        
+        .order-items { margin: 15px 0; }
+        .order-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+        .order-item:last-child { border-bottom: none; }
+        
+        .order-total { margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; }
+        .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; color: #333; }
+        
+        .order-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-sm { padding: 8px 16px; font-size: 13px; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 5% auto; padding: 30px; width: 90%; max-width: 600px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .modal-header h2 { font-size: 24px; color: #333; }
+        .close { font-size: 30px; color: #999; cursor: pointer; transition: color 0.3s ease; }
+        .close:hover { color: #333; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1); }
+        
+        .menu-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
+        .menu-item-card { padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.3s ease; }
+        .menu-item-card:hover { border-color: #667eea; transform: translateY(-2px); }
+        .menu-item-card.selected { border-color: #667eea; background: #f0f4ff; }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; width: 100%; }
+            .orders-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">🦐</div>
+            <h2>Stasiun Kerang</h2>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
+            <a href="orders.html" class="menu-item active"><i class="fas fa-shopping-cart"></i><span>Orders</span></a>
+            <a href="menu-management.html" class="menu-item"><i class="fas fa-utensils"></i><span>Menu</span></a>
+            <a href="kitchen.html" class="menu-item"><i class="fas fa-fire"></i><span>Kitchen</span></a>
+            <a href="reports.html" class="menu-item"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
+            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Pengaturan</span></a>
+            <a href="#" class="menu-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <h1>Manajemen Orders</h1>
+        </div>
+
+        <div class="content">
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="openNewOrderModal()">
+                    <i class="fas fa-plus"></i> Order Baru
+                </button>
+                <div class="filter-group">
+                    <button class="filter-btn active" data-status="all" onclick="filterOrders('all')">Semua</button>
+                    <button class="filter-btn" data-status="pending" onclick="filterOrders('pending')">Pending</button>
+                    <button class="filter-btn" data-status="preparing" onclick="filterOrders('preparing')">Preparing</button>
+                    <button class="filter-btn" data-status="ready" onclick="filterOrders('ready')">Ready</button>
+                    <button class="filter-btn" data-status="completed" onclick="filterOrders('completed')">Completed</button>
+                </div>
+            </div>
+
+            <div class="orders-grid" id="ordersGrid"></div>
+        </div>
+    </div>
+
+    <!-- Modal New Order -->
+    <div id="newOrderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Order Baru</h2>
+                <span class="close" onclick="closeNewOrderModal()">&times;</span>
+            </div>
+            <form id="newOrderForm">
+                <div class="form-group">
+                    <label>Nomor Meja</label>
+                    <select id="tableNumber" required>
+                        <option value="">Pilih Meja</option>
+                        <option value="T01">T01 - Indoor (4 kursi)</option>
+                        <option value="T02">T02 - Indoor (4 kursi)</option>
+                        <option value="T03">T03 - Indoor (6 kursi)</option>
+                        <option value="T04">T04 - Indoor (2 kursi)</option>
+                        <option value="T05">T05 - Outdoor (8 kursi)</option>
+                        <option value="VIP01">VIP01 - VIP (10 kursi)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Nama Pelanggan</label>
+                    <input type="text" id="customerName" placeholder="Masukkan nama pelanggan">
+                </div>
+                <div class="form-group">
+                    <label>Nomor HP</label>
+                    <input type="tel" id="customerPhone" placeholder="08xxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label>Tipe Order</label>
+                    <select id="orderType" required>
+                        <option value="dine_in">Dine In</option>
+                        <option value="takeaway">Takeaway</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Pilih Menu</label>
+                    <div class="menu-selector" id="menuSelector"></div>
+                </div>
+                <div class="form-group">
+                    <label>Catatan</label>
+                    <textarea id="orderNotes" rows="3" placeholder="Catatan tambahan..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-check"></i> Buat Order
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'index.html';
+
+        let orders = [
+            { id: 1, orderNumber: 'ORD-20260106-0001', table: 'T01', customer: 'John Doe', phone: '081234567890', type: 'dine_in', status: 'preparing', items: [{name: 'Kerang Asam Manis', qty: 2, price: 85000}, {name: 'Udang Goreng', qty: 1, price: 95000}], total: 265000, time: '10:30' },
+            { id: 2, orderNumber: 'ORD-20260106-0002', table: 'T03', customer: 'Jane Smith', phone: '081234567891', type: 'dine_in', status: 'ready', items: [{name: 'Cumi Saus Padang', qty: 3, price: 78000}, {name: 'Nasi Putih', qty: 3, price: 15000}], total: 279000, time: '11:15' },
+            { id: 3, orderNumber: 'ORD-20260106-0003', table: 'T05', customer: 'Bob Wilson', phone: '081234567892', type: 'dine_in', status: 'pending', items: [{name: 'Kepiting Saos Tiram', qty: 1, price: 150000}], total: 150000, time: '11:45' }
+        ];
+
+        const menuItems = [
+            { id: 1, name: 'Kerang Asam Manis', price: 85000, category: 'Kerang' },
+            { id: 2, name: 'Udang Goreng Mentega', price: 95000, category: 'Seafood' },
+            { id: 3, name: 'Cumi Saus Padang', price: 78000, category: 'Seafood' },
+            { id: 4, name: 'Kepiting Saos Tiram', price: 150000, category: 'Seafood' },
+            { id: 5, name: 'Nasi Putih', price: 15000, category: 'Side' },
+            { id: 6, name: 'Es Teh Manis', price: 8000, category: 'Beverage' }
+        ];
+
+        let selectedItems = [];
+
+        function renderOrders(filter = 'all') {
+            const grid = document.getElementById('ordersGrid');
+            const filteredOrders = filter === 'all' ? orders : orders.filter(o => o.status === filter);
+            
+            if (filteredOrders.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #999;">Tidak ada order dengan status ini</div>';
+                return;
+            }
+            
+            grid.innerHTML = filteredOrders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div>
+                            <div class="order-number">${order.orderNumber}</div>
+                            <div class="order-time"><i class="far fa-clock"></i> ${order.time}</div>
+                        </div>
+                        <span class="badge badge-${order.status}">${order.status}</span>
+                    </div>
+                    <div class="order-info">
+                        <div class="info-row"><span class="info-label">Meja:</span><span class="info-value">${order.table}</span></div>
+                        <div class="info-row"><span class="info-label">Pelanggan:</span><span class="info-value">${order.customer}</span></div>
+                        <div class="info-row"><span class="info-label">Tipe:</span><span class="info-value">${order.type}</span></div>
+                    </div>
+                    <div class="order-items">
+                        ${order.items.map(item => `
+                            <div class="order-item">
+                                <span>${item.qty}x ${item.name}</span>
+                                <span><strong>${formatCurrency(item.price * item.qty)}</strong></span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="order-total">
+                        <div class="total-row"><span>Total:</span><span>${formatCurrency(order.total)}</span></div>
+                    </div>
+                    <div class="order-actions">
+                        ${order.status === 'pending' ? `<button class="btn btn-sm btn-info" onclick="updateOrderStatus(${order.id}, 'preparing')"><i class="fas fa-fire"></i> Mulai Masak</button>` : ''}
+                        ${order.status === 'preparing' ? `<button class="btn btn-sm btn-success" onclick="updateOrderStatus(${order.id}, 'ready')"><i class="fas fa-check"></i> Siap</button>` : ''}
+                        ${order.status === 'ready' ? `<button class="btn btn-sm btn-success" onclick="updateOrderStatus(${order.id}, 'completed')"><i class="fas fa-check-double"></i> Selesai</button>` : ''}
+                        <button class="btn btn-sm btn-danger" onclick="cancelOrder(${order.id})"><i class="fas fa-times"></i> Batal</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterOrders(status) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderOrders(status);
+        }
+
+        function openNewOrderModal() {
+            document.getElementById('newOrderModal').style.display = 'block';
+            renderMenuSelector();
+        }
+
+        function closeNewOrderModal() {
+            document.getElementById('newOrderModal').style.display = 'none';
+            document.getElementById('newOrderForm').reset();
+            selectedItems = [];
+        }
+
+        function renderMenuSelector() {
+            const selector = document.getElementById('menuSelector');
+            selector.innerHTML = menuItems.map(item => `
+                <div class="menu-item-card" onclick="toggleMenuItem(${item.id})">
+                    <div style="font-weight: 600; margin-bottom: 8px;">${item.name}</div>
+                    <div style="color: #667eea; font-weight: bold;">${formatCurrency(item.price)}</div>
+                    <div style="font-size: 12px; color: #999; margin-top: 5px;">${item.category}</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleMenuItem(itemId) {
+            const card = event.currentTarget;
+            const item = menuItems.find(m => m.id === itemId);
+            const index = selectedItems.findIndex(s => s.id === itemId);
+            
+            if (index > -1) {
+                selectedItems.splice(index, 1);
+                card.classList.remove('selected');
+            } else {
+                selectedItems.push({...item, qty: 1});
+                card.classList.add('selected');
+            }
+        }
+
+        document.getElementById('newOrderForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (selectedItems.length === 0) {
+                alert('Pilih minimal 1 menu!');
+                return;
+            }
+            
+            const newOrder = {
+                id: orders.length + 1,
+                orderNumber: `ORD-${new Date().toISOString().slice(0,10).replace(/-/g, '')}-${String(orders.length + 1).padStart(4, '0')}`,
+                table: document.getElementById('tableNumber').value,
+                customer: document.getElementById('customerName').value || 'Guest',
+                phone: document.getElementById('customerPhone').value || '-',
+                type: document.getElementById('orderType').value,
+                status: 'pending',
+                items: selectedItems,
+                total: selectedItems.reduce((sum, item) => sum + (item.price * item.qty), 0),
+                time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+            };
+            
+            orders.unshift(newOrder);
+            closeNewOrderModal();
+            renderOrders();
+            alert('Order berhasil dibuat!');
+        });
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = newStatus;
+                renderOrders();
+                alert(`Order ${order.orderNumber} diupdate ke status: ${newStatus}`);
+            }
+        }
+
+        function cancelOrder(orderId) {
+            if (confirm('Yakin ingin membatalkan order ini?')) {
+                const index = orders.findIndex(o => o.id === orderId);
+                if (index > -1) {
+                    orders[index].status = 'cancelled';
+                    renderOrders();
+                    alert('Order dibatalkan');
+                }
+            }
+        }
+
+        function formatCurrency(amount) {
+            return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function logout() {
+            if (confirm('Yakin ingin logout?')) {
+                localStorage.removeItem('user');
+                window.location.href = 'index.html';
+            }
+        }
+
+        renderOrders();
+    </script>
+</body>
+</html>
