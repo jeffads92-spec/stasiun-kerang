@@ -1,328 +1,150 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan - Stasiun Kerang</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; }
-        
-        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); height: 100vh; position: fixed; left: 0; top: 0; overflow-y: auto; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
-        .sidebar-header { padding: 25px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-header h2 { color: white; font-size: 24px; margin-top: 10px; }
-        .logo-icon { font-size: 48px; margin-bottom: 10px; }
-        .sidebar-menu { padding: 20px 0; }
-        .menu-item { display: flex; align-items: center; padding: 15px 25px; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s ease; cursor: pointer; }
-        .menu-item:hover { background: rgba(255,255,255,0.1); color: white; padding-left: 30px; }
-        .menu-item.active { background: rgba(255,255,255,0.15); border-left: 4px solid #4CAF50; color: white; }
-        .menu-item i { font-size: 18px; width: 30px; }
-        
-        .main-content { margin-left: 260px; width: calc(100% - 260px); min-height: 100vh; }
-        .topbar { background: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .topbar h1 { font-size: 28px; color: #333; }
-        
-        .content { padding: 30px; }
-        
-        .filter-bar { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 25px; }
-        .filter-row { display: flex; gap: 15px; align-items: end; flex-wrap: wrap; }
-        .filter-group { flex: 1; min-width: 200px; }
-        .filter-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
-        .filter-group input, .filter-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
-        .filter-group input:focus, .filter-group select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1); }
-        
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
-        .btn-success { background: #1dd1a1; color: white; }
-        .btn-info { background: #48dbfb; color: white; }
-        
-        .report-tabs { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
-        .tab-btn { padding: 12px 24px; border: 2px solid #e0e0e0; background: white; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; font-weight: 600; }
-        .tab-btn.active { border-color: #667eea; background: #667eea; color: white; }
-        
-        .stats-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .summary-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); position: relative; overflow: hidden; }
-        .summary-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; margin-bottom: 15px; }
-        .summary-icon.blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .summary-icon.green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .summary-icon.orange { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .summary-icon.purple { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .summary-value { font-size: 32px; font-weight: bold; color: #333; margin-bottom: 5px; }
-        .summary-label { color: #999; font-size: 14px; }
-        .summary-change { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0; font-size: 13px; }
-        .change-positive { color: #1dd1a1; }
-        .change-negative { color: #ff6b6b; }
-        
-        .chart-container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 25px; }
-        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .chart-header h3 { font-size: 18px; color: #333; }
-        
-        .table-container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th { background: #f8f9fa; padding: 15px; text-align: left; font-weight: 600; color: #666; border-bottom: 2px solid #e0e0e0; }
-        td { padding: 15px; border-bottom: 1px solid #f0f0f0; }
-        tr:hover { background: #f8f9fa; }
-        
-        .progress-bar { width: 100%; height: 8px; background: #f0f0f0; border-radius: 10px; overflow: hidden; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 10px; transition: width 0.3s ease; }
-        
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .main-content { margin-left: 0; width: 100%; }
+<!-- Ganti bagian <script> di reports.html dengan ini -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) window.location.href = 'index.html';
+
+    const API_BASE = '/api';
+    let salesTrendChart, categoryChart;
+
+    // Set default dates
+    document.getElementById('startDate').value = new Date(Date.now() - 7*24*60*60*1000).toISOString().split('T')[0];
+    document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
+
+    // Fetch Report Summary
+    async function fetchReportSummary() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=summary&start_date=${startDate}&end_date=${endDate}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                renderSummary(result.data.summary);
+            }
+        } catch (error) {
+            console.error('Error fetching summary:', error);
+            renderDefaultSummary();
         }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="logo-icon">🦐</div>
-            <h2>Stasiun Kerang</h2>
-        </div>
-        <nav class="sidebar-menu">
-            <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
-            <a href="orders.html" class="menu-item"><i class="fas fa-shopping-cart"></i><span>Orders</span></a>
-            <a href="menu-management.html" class="menu-item"><i class="fas fa-utensils"></i><span>Menu</span></a>
-            <a href="kitchen.html" class="menu-item"><i class="fas fa-fire"></i><span>Kitchen</span></a>
-            <a href="reports.html" class="menu-item active"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
-            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Pengaturan</span></a>
-            <a href="#" class="menu-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
-        </nav>
-    </div>
+    }
 
-    <div class="main-content">
-        <div class="topbar">
-            <h1>Laporan & Analytics</h1>
-        </div>
-
-        <div class="content">
-            <div class="filter-bar">
-                <div class="filter-row">
-                    <div class="filter-group">
-                        <label>Dari Tanggal</label>
-                        <input type="date" id="startDate" value="2026-01-01">
-                    </div>
-                    <div class="filter-group">
-                        <label>Sampai Tanggal</label>
-                        <input type="date" id="endDate" value="2026-01-06">
-                    </div>
-                    <div class="filter-group">
-                        <label>Tipe Laporan</label>
-                        <select id="reportType">
-                            <option value="sales">Penjualan</option>
-                            <option value="menu">Menu Terlaris</option>
-                            <option value="revenue">Revenue</option>
-                            <option value="customer">Pelanggan</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="generateReport()">
-                        <i class="fas fa-chart-bar"></i> Generate
-                    </button>
-                    <button class="btn btn-success" onclick="exportReport()">
-                        <i class="fas fa-file-excel"></i> Export
-                    </button>
+    function renderSummary(summary) {
+        document.querySelector('.stats-summary').innerHTML = `
+            <div class="summary-card">
+                <div class="summary-icon blue">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="summary-value">${summary.total_transactions || 0}</div>
+                <div class="summary-label">Total Transaksi</div>
+                <div class="summary-change change-positive">
+                    <i class="fas fa-arrow-up"></i> +${summary.transaction_change || 0}% dari periode sebelumnya
                 </div>
             </div>
-
-            <div class="report-tabs">
-                <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
-                <button class="tab-btn" onclick="switchTab('detailed')">Detail</button>
-                <button class="tab-btn" onclick="switchTab('comparison')">Perbandingan</button>
-            </div>
-
-            <div class="stats-summary">
-                <div class="summary-card">
-                    <div class="summary-icon blue">
-                        <i class="fas fa-shopping-cart"></i>
-                    </div>
-                    <div class="summary-value">248</div>
-                    <div class="summary-label">Total Transaksi</div>
-                    <div class="summary-change change-positive">
-                        <i class="fas fa-arrow-up"></i> +15.3% dari periode sebelumnya
-                    </div>
+            <div class="summary-card">
+                <div class="summary-icon green">
+                    <i class="fas fa-dollar-sign"></i>
                 </div>
-                <div class="summary-card">
-                    <div class="summary-icon green">
-                        <i class="fas fa-dollar-sign"></i>
-                    </div>
-                    <div class="summary-value">Rp 28.5M</div>
-                    <div class="summary-label">Total Revenue</div>
-                    <div class="summary-change change-positive">
-                        <i class="fas fa-arrow-up"></i> +22.8% dari periode sebelumnya
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-icon orange">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="summary-value">Rp 115K</div>
-                    <div class="summary-label">Rata-rata Transaksi</div>
-                    <div class="summary-change change-positive">
-                        <i class="fas fa-arrow-up"></i> +6.5% dari periode sebelumnya
-                    </div>
-                </div>
-                <div class="summary-card">
-                    <div class="summary-icon purple">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <div class="summary-value">186</div>
-                    <div class="summary-label">Total Pelanggan</div>
-                    <div class="summary-change change-positive">
-                        <i class="fas fa-arrow-up"></i> +12.1% dari periode sebelumnya
-                    </div>
+                <div class="summary-value">${formatCurrencyShort(summary.total_revenue || 0)}</div>
+                <div class="summary-label">Total Revenue</div>
+                <div class="summary-change change-positive">
+                    <i class="fas fa-arrow-up"></i> +${summary.revenue_change || 0}% dari periode sebelumnya
                 </div>
             </div>
-
-            <div class="chart-container">
-                <div class="chart-header">
-                    <h3>Trend Penjualan</h3>
-                    <select style="padding: 8px 15px; border-radius: 6px; border: 1px solid #e0e0e0;">
-                        <option>Harian</option>
-                        <option>Mingguan</option>
-                        <option>Bulanan</option>
-                    </select>
+            <div class="summary-card">
+                <div class="summary-icon orange">
+                    <i class="fas fa-chart-line"></i>
                 </div>
-                <canvas id="salesTrendChart" style="max-height: 350px;"></canvas>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px;">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Menu Terlaris</h3>
-                    </div>
-                    <div id="topSellingMenu"></div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>Kategori Penjualan</h3>
-                    </div>
-                    <canvas id="categoryChart" style="max-height: 300px;"></canvas>
+                <div class="summary-value">${formatCurrencyShort(summary.average_transaction || 0)}</div>
+                <div class="summary-label">Rata-rata Transaksi</div>
+                <div class="summary-change change-positive">
+                    <i class="fas fa-arrow-up"></i> +${summary.avg_change || 0}% dari periode sebelumnya
                 </div>
             </div>
-
-            <div class="table-container">
-                <div class="chart-header">
-                    <h3>Detail Transaksi</h3>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" placeholder="Cari transaksi..." style="padding: 8px 15px; border: 1px solid #e0e0e0; border-radius: 6px;">
-                        <button class="btn btn-info">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
+            <div class="summary-card">
+                <div class="summary-icon purple">
+                    <i class="fas fa-users"></i>
                 </div>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>No Order</th>
-                                <th>Tanggal</th>
-                                <th>Pelanggan</th>
-                                <th>Meja</th>
-                                <th>Items</th>
-                                <th>Total</th>
-                                <th>Payment</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactionTable"></tbody>
-                    </table>
+                <div class="summary-value">${summary.unique_customers || 0}</div>
+                <div class="summary-label">Total Pelanggan</div>
+                <div class="summary-change change-positive">
+                    <i class="fas fa-arrow-up"></i> +${summary.customer_change || 0}% dari periode sebelumnya
                 </div>
             </div>
-        </div>
-    </div>
+        `;
+    }
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script>
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) window.location.href = 'index.html';
-
-        // Sales Trend Chart
-        const ctx1 = document.getElementById('salesTrendChart').getContext('2d');
-        const salesTrendChart = new Chart(ctx1, {
-            type: 'line',
-            data: {
-                labels: ['1 Jan', '2 Jan', '3 Jan', '4 Jan', '5 Jan', '6 Jan'],
-                datasets: [{
-                    label: 'Revenue',
-                    data: [3800000, 4200000, 3900000, 5100000, 4800000, 6700000],
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 6,
-                    pointHoverRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return 'Rp ' + (value / 1000000) + 'M';
-                            }
-                        }
-                    }
-                }
-            }
+    function renderDefaultSummary() {
+        renderSummary({
+            total_transactions: 248,
+            total_revenue: 28500000,
+            average_transaction: 115000,
+            unique_customers: 186,
+            transaction_change: 15.3,
+            revenue_change: 22.8,
+            avg_change: 6.5,
+            customer_change: 12.1
         });
+    }
 
-        // Category Chart
-        const ctx2 = document.getElementById('categoryChart').getContext('2d');
-        const categoryChart = new Chart(ctx2, {
-            type: 'doughnut',
-            data: {
-                labels: ['Seafood', 'Kerang Special', 'Appetizers', 'Beverages'],
-                datasets: [{
-                    data: [45, 30, 15, 10],
-                    backgroundColor: ['#667eea', '#11998e', '#f5576c', '#4facfe'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+    // Fetch Sales Trend
+    async function fetchSalesTrend() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=sales_trend&start_date=${startDate}&end_date=${endDate}`);
+            const result = await response.json();
+            
+            if (result.success && result.data.trend) {
+                updateSalesTrendChart(result.data.trend);
             }
-        });
+        } catch (error) {
+            console.error('Error fetching sales trend:', error);
+        }
+    }
 
-        // Top Selling Menu
-        const topMenu = [
-            { name: 'Kerang Asam Manis', qty: 85, revenue: 7225000 },
-            { name: 'Udang Goreng Mentega', qty: 72, revenue: 6840000 },
-            { name: 'Cumi Saus Padang', qty: 68, revenue: 5304000 },
-            { name: 'Kepiting Saos Tiram', qty: 42, revenue: 6300000 },
-            { name: 'Kerang Hijau Kuah', qty: 56, revenue: 3640000 }
-        ];
+    function updateSalesTrendChart(trendData) {
+        const labels = trendData.map(d => d.date);
+        const data = trendData.map(d => d.revenue);
+        
+        if (salesTrendChart) {
+            salesTrendChart.data.labels = labels;
+            salesTrendChart.data.datasets[0].data = data;
+            salesTrendChart.update();
+        }
+    }
 
-        const topMenuHtml = topMenu.map((item, index) => {
-            const percentage = (item.qty / topMenu[0].qty) * 100;
+    // Fetch Menu Performance
+    async function fetchMenuPerformance() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=menu_performance&start_date=${startDate}&end_date=${endDate}&limit=5`);
+            const result = await response.json();
+            
+            if (result.success && result.data.menu_performance) {
+                renderTopMenu(result.data.menu_performance);
+            }
+        } catch (error) {
+            console.error('Error fetching menu performance:', error);
+            renderDefaultTopMenu();
+        }
+    }
+
+    function renderTopMenu(menuData) {
+        const maxQty = Math.max(...menuData.map(m => m.quantity));
+        const topMenuHtml = menuData.map((item, index) => {
+            const percentage = (item.quantity / maxQty) * 100;
             return `
                 <div style="margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="font-weight: 600; color: #333;">${index + 1}. ${item.name}</span>
-                        <span style="color: #667eea; font-weight: bold;">${item.qty} porsi</span>
+                        <span style="font-weight: 600; color: #333;">${index + 1}. ${item.menu_name}</span>
+                        <span style="color: #667eea; font-weight: bold;">${item.quantity} porsi</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 13px; color: #999; margin-bottom: 8px;">
-                        <span>Revenue: ${formatCurrency(item.revenue)}</span>
+                        <span>Revenue: ${formatCurrency(item.total_revenue)}</span>
                     </div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: ${percentage}%;"></div>
@@ -331,54 +153,220 @@
             `;
         }).join('');
         document.getElementById('topSellingMenu').innerHTML = topMenuHtml;
+    }
 
-        // Transaction Table
-        const transactions = [
-            { orderNo: 'ORD-20260106-0001', date: '06/01/2026 10:30', customer: 'John Doe', table: 'T01', items: 3, total: 285000, payment: 'Cash', status: 'Completed' },
-            { orderNo: 'ORD-20260106-0002', date: '06/01/2026 11:15', customer: 'Jane Smith', table: 'T03', items: 5, total: 520000, payment: 'Card', status: 'Completed' },
-            { orderNo: 'ORD-20260106-0003', date: '06/01/2026 11:45', customer: 'Bob Wilson', table: 'T05', items: 2, total: 180000, payment: 'QR Code', status: 'Completed' },
-            { orderNo: 'ORD-20260105-0045', date: '05/01/2026 19:20', customer: 'Alice Brown', table: 'T02', items: 4, total: 425000, payment: 'Transfer', status: 'Completed' },
-            { orderNo: 'ORD-20260105-0044', date: '05/01/2026 18:50', customer: 'Charlie Davis', table: 'VIP01', items: 8, total: 1250000, payment: 'Card', status: 'Completed' }
-        ];
+    function renderDefaultTopMenu() {
+        renderTopMenu([
+            { menu_name: 'Kerang Asam Manis', quantity: 85, total_revenue: 7225000 },
+            { menu_name: 'Udang Goreng Mentega', quantity: 72, total_revenue: 6840000 },
+            { menu_name: 'Cumi Saus Padang', quantity: 68, total_revenue: 5304000 },
+            { menu_name: 'Kepiting Saos Tiram', quantity: 42, total_revenue: 6300000 },
+            { menu_name: 'Kerang Hijau Kuah', quantity: 56, total_revenue: 3640000 }
+        ]);
+    }
 
+    // Fetch Category Breakdown
+    async function fetchCategoryBreakdown() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=category_breakdown&start_date=${startDate}&end_date=${endDate}`);
+            const result = await response.json();
+            
+            if (result.success && result.data.categories) {
+                updateCategoryChart(result.data.categories);
+            }
+        } catch (error) {
+            console.error('Error fetching category breakdown:', error);
+        }
+    }
+
+    function updateCategoryChart(categories) {
+        if (categoryChart) {
+            categoryChart.data.labels = categories.map(c => c.category_name);
+            categoryChart.data.datasets[0].data = categories.map(c => c.percentage);
+            categoryChart.update();
+        }
+    }
+
+    // Fetch Transactions
+    async function fetchTransactions() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=transactions&start_date=${startDate}&end_date=${endDate}`);
+            const result = await response.json();
+            
+            if (result.success && result.data.transactions) {
+                renderTransactions(result.data.transactions);
+            }
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+            renderDefaultTransactions();
+        }
+    }
+
+    function renderTransactions(transactions) {
         const tableHtml = transactions.map(tx => `
             <tr>
-                <td><strong>${tx.orderNo}</strong></td>
-                <td>${tx.date}</td>
-                <td>${tx.customer}</td>
-                <td>${tx.table}</td>
-                <td>${tx.items} items</td>
+                <td><strong>${tx.order_number}</strong></td>
+                <td>${formatDateTime(tx.created_at)}</td>
+                <td>${tx.customer_name || 'Guest'}</td>
+                <td>${tx.table_number || '-'}</td>
+                <td>${tx.total_items} items</td>
                 <td><strong>${formatCurrency(tx.total)}</strong></td>
-                <td><span style="padding: 4px 10px; background: #d1e7dd; color: #0f5132; border-radius: 4px; font-size: 12px;">${tx.payment}</span></td>
+                <td><span style="padding: 4px 10px; background: #d1e7dd; color: #0f5132; border-radius: 4px; font-size: 12px;">${tx.payment_method || 'Cash'}</span></td>
                 <td><span style="padding: 4px 10px; background: #d3d3d3; color: #383838; border-radius: 4px; font-size: 12px;">${tx.status}</span></td>
             </tr>
         `).join('');
         document.getElementById('transactionTable').innerHTML = tableHtml;
+    }
 
-        function formatCurrency(amount) {
-            return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        }
+    function renderDefaultTransactions() {
+        renderTransactions([
+            { order_number: 'ORD-20260106-0001', created_at: '2026-01-06 10:30:00', customer_name: 'John Doe', table_number: 'T01', total_items: 3, total: 285000, payment_method: 'Cash', status: 'completed' },
+            { order_number: 'ORD-20260106-0002', created_at: '2026-01-06 11:15:00', customer_name: 'Jane Smith', table_number: 'T03', total_items: 5, total: 520000, payment_method: 'Card', status: 'completed' },
+            { order_number: 'ORD-20260106-0003', created_at: '2026-01-06 11:45:00', customer_name: 'Bob Wilson', table_number: 'T05', total_items: 2, total: 180000, payment_method: 'QR Code', status: 'completed' }
+        ]);
+    }
 
-        function generateReport() {
-            alert('Generating report...');
-        }
-
-        function exportReport() {
-            alert('Exporting to Excel...');
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            alert(`Switched to ${tab} view`);
-        }
-
-        function logout() {
-            if (confirm('Yakin ingin logout?')) {
-                localStorage.removeItem('user');
-                window.location.href = 'index.html';
+    // Initialize Charts
+    const ctx1 = document.getElementById('salesTrendChart').getContext('2d');
+    salesTrendChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: ['1 Jan', '2 Jan', '3 Jan', '4 Jan', '5 Jan', '6 Jan'],
+            datasets: [{
+                label: 'Revenue',
+                data: [3800000, 4200000, 3900000, 5100000, 4800000, 6700000],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Rp ' + (value / 1000000) + 'M';
+                        }
+                    }
+                }
             }
         }
-    </script>
-</body>
-</html>
+    });
+
+    const ctx2 = document.getElementById('categoryChart').getContext('2d');
+    categoryChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Seafood', 'Kerang Special', 'Appetizers', 'Beverages'],
+            datasets: [{
+                data: [45, 30, 15, 10],
+                backgroundColor: ['#667eea', '#11998e', '#f5576c', '#4facfe'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    function formatCurrency(amount) {
+        return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+
+    function formatCurrencyShort(amount) {
+        if (amount >= 1000000) {
+            return 'Rp ' + (amount / 1000000).toFixed(1) + 'M';
+        }
+        return 'Rp ' + (amount / 1000).toFixed(0) + 'K';
+    }
+
+    function formatDateTime(datetime) {
+        if (!datetime) return '-';
+        const date = new Date(datetime);
+        return date.toLocaleDateString('id-ID') + ' ' + date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function generateReport() {
+        fetchReportSummary();
+        fetchSalesTrend();
+        fetchMenuPerformance();
+        fetchCategoryBreakdown();
+        fetchTransactions();
+    }
+
+    async function exportReport() {
+        try {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const format = 'csv';
+            
+            const response = await fetch(`${API_BASE}/reports.php?action=export&format=${format}&start_date=${startDate}&end_date=${endDate}`);
+            
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `report_${startDate}_${endDate}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+                alert('Report berhasil di-export!');
+            } else {
+                alert('Gagal export report');
+            }
+        } catch (error) {
+            console.error('Error exporting report:', error);
+            alert('Gagal export report');
+        }
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        console.log(`Switched to ${tab} view`);
+    }
+
+    function logout() {
+        if (confirm('Yakin ingin logout?')) {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    }
+
+    // Initial load
+    fetchReportSummary();
+    fetchSalesTrend();
+    fetchMenuPerformance();
+    fetchCategoryBreakdown();
+    fetchTransactions();
+</script>
