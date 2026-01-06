@@ -1,9 +1,0 @@
-{
-    "name": "jeffads92-spec/stasiun-kerang",
-    "description": "Restaurant Management System",
-    "type": "project",
-    "license": "MIT",
-    "config": {
-        "platform-check": false
-    }
-}
