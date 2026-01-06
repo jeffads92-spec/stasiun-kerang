@@ -1,14 +1,11 @@
 <?php
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-$file = __DIR__ . '/index.html';
-if (file_exists($file)) {
-    header('Content-Type: text/html');
-    readfile($file);
+if (file_exists('index.html')) {
+    header('Content-Type: text/html; charset=utf-8');
+    readfile('index.html');
 } else {
-    http_response_code(404);
-    echo 'File not found. Current dir: ' . __DIR__;
+    echo 'File index.html tidak ditemukan.';
 }
 ?>
