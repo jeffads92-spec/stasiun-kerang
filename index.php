@@ -1,4 +1,4 @@
 <?php
-header('Location: index.html');
-exit();
+// index.php
+readfile('index.html');
 ?>
