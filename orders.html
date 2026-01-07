@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Orders - Stasiun Kerang</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="auth.js"></script>
     <style>
         * {
             margin: 0;
@@ -541,33 +540,33 @@
             </div>
             <form id="newOrderForm" onsubmit="return false;">
                 <div class="form-group">
-                    <label>Nomor Meja</label>
-                    <input type="text" id="tableNumber" placeholder="Contoh: T01">
+                    <label for="tableNumber">Nomor Meja</label>
+                    <input type="text" id="tableNumber" name="tableNumber" placeholder="Contoh: T01">
                 </div>
                 <div class="form-group">
-                    <label>Nama Pelanggan</label>
-                    <input type="text" id="customerName" placeholder="Nama pelanggan">
+                    <label for="customerName">Nama Pelanggan</label>
+                    <input type="text" id="customerName" name="customerName" placeholder="Nama pelanggan">
                 </div>
                 <div class="form-group">
-                    <label>Nomor Telepon</label>
-                    <input type="tel" id="customerPhone" placeholder="08xxx">
+                    <label for="customerPhone">Nomor Telepon</label>
+                    <input type="tel" id="customerPhone" name="customerPhone" placeholder="08xxx">
                 </div>
                 <div class="form-group">
-                    <label>Tipe Order</label>
-                    <select id="orderType" required>
+                    <label for="orderType">Tipe Order</label>
+                    <select id="orderType" name="orderType" required>
                         <option value="Dine In">Dine In</option>
                         <option value="Takeaway">Takeaway</option>
                         <option value="Delivery">Delivery</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Pilih Menu</label>
+                    <label for="menuSelect">Pilih Menu</label>
                     <div class="menu-selection">
                         <div class="menu-item-row">
-                            <select id="menuSelect">
+                            <select id="menuSelect" name="menuSelect" aria-label="Pilih menu">
                                 <option value="">-- Pilih Menu --</option>
                             </select>
-                            <input type="number" id="menuQuantity" min="1" value="1" placeholder="Qty">
+                            <input type="number" id="menuQuantity" name="menuQuantity" min="1" value="1" placeholder="Qty" aria-label="Jumlah">
                             <button type="button" class="btn btn-success" onclick="addMenuItem(); return false;">
                                 <i class="fas fa-plus"></i> Tambah
                             </button>
@@ -576,8 +575,8 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Catatan</label>
-                    <textarea id="orderNotes" placeholder="Catatan tambahan..."></textarea>
+                    <label for="orderNotes">Catatan</label>
+                    <textarea id="orderNotes" name="orderNotes" placeholder="Catatan tambahan..."></textarea>
                 </div>
                 <div class="order-summary">
                     <div class="summary-row">
