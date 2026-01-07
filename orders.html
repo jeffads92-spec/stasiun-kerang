@@ -307,6 +307,94 @@
         fetchOrders();
         fetchMenuItems();
         setInterval(() => { fetchOrders(); }, 15000);
-    </script>
+    // Tambahkan script ini di orders.html sebelum closing </body> tag
+
+// DEBUG: Test API Menu
+async function debugMenuAPI() {
+    console.log('=== DEBUG: Testing Menu API ===');
+    
+    try {
+        const response = await fetch('/api/menu.php');
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.success && data.data && data.data.length > 0) {
+            console.log('✓ API working! Found', data.data.length, 'menu items');
+            console.log('Sample menu:', data.data[0]);
+            return true;
+        } else if (data.success && data.data && data.data.length === 0) {
+            console.error('✗ API working but NO menu items found!');
+            console.error('Please run: php add-sample-menu.php');
+            return false;
+        } else {
+            console.error('✗ API error:', data);
+            return false;
+        }
+    } catch (error) {
+        console.error('✗ Fetch error:', error);
+        return false;
+    }
+}
+
+// DEBUG: Test Categories API
+async function debugCategoriesAPI() {
+    console.log('=== DEBUG: Testing Categories API ===');
+    
+    try {
+        const response = await fetch('/api/menu.php?resource=categories');
+        console.log('Response status:', response.status);
+        
+        const data = await response.json();
+        console.log('Categories data:', data);
+        
+        if (data.success && data.data && data.data.length > 0) {
+            console.log('✓ Found', data.data.length, 'categories');
+            return true;
+        } else {
+            console.error('✗ No categories found!');
+            return false;
+        }
+    } catch (error) {
+        console.error('✗ Categories fetch error:', error);
+        return false;
+    }
+}
+
+// Jalankan debug saat halaman load
+window.addEventListener('DOMContentLoaded', async () => {
+    console.log('=== ORDERS PAGE LOADED ===');
+    console.log('Current URL:', window.location.href);
+    
+    // Test APIs
+    await debugMenuAPI();
+    await debugCategoriesAPI();
+    
+    console.log('=== DEBUG COMPLETE ===');
+});
+
+// Fungsi manual untuk test dari console
+window.testMenuAPI = debugMenuAPI;
+window.testCategoriesAPI = debugCategoriesAPI;
+
+// Tambahkan log untuk melihat apakah menu select ter-render
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.addedNodes.length) {
+            mutation.addedNodes.forEach((node) => {
+                if (node.id === 'menuSelect' || node.name === 'menu_id') {
+                    console.log('✓ Menu select element added to DOM:', node);
+                }
+            });
+        }
+    });
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
 </body>
 </html>
