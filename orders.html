@@ -604,6 +604,13 @@
     </div>
 
     <script>
+        // Prevent share-modal.js error
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('share-modal')) {
+                e.preventDefault();
+            }
+        });
+
         let allOrders = [];
         let selectedMenuItems = [];
         let currentStatusFilter = '';
