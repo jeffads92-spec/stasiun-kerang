@@ -7,13 +7,13 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; display: flex; }
-        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); height: 100vh; position: fixed; left: 0; top: 0; overflow-y: auto; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; }
+        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); height: 100vh; position: fixed; left: 0; top: 0; overflow-y: auto; }
         .sidebar-header { padding: 25px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .sidebar-header h2 { color: white; font-size: 24px; margin-top: 10px; }
         .logo-icon { font-size: 48px; margin-bottom: 10px; }
         .sidebar-menu { padding: 20px 0; }
-        .menu-item { display: flex; align-items: center; padding: 15px 25px; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s ease; cursor: pointer; }
+        .menu-item { display: flex; align-items: center; padding: 15px 25px; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s ease; }
         .menu-item:hover { background: rgba(255,255,255,0.1); color: white; padding-left: 30px; }
         .menu-item.active { background: rgba(255,255,255,0.15); border-left: 4px solid #4CAF50; color: white; }
         .menu-item i { font-size: 18px; width: 30px; }
@@ -28,8 +28,7 @@
         .card-header p { color: #999; font-size: 13px; }
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: all 0.3s ease; }
-        .form-group input:focus, .form-group select:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1); }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
         .toggle-switch { position: relative; display: inline-block; width: 60px; height: 30px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 30px; }
@@ -45,13 +44,12 @@
         .info-box { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #667eea; margin-bottom: 15px; }
         .info-box h4 { color: #333; margin-bottom: 5px; font-size: 14px; }
         .info-box p { color: #666; font-size: 13px; }
-        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; width: 100%; } }
     </style>
 </head>
 <body>
     <div class="sidebar">
         <div class="sidebar-header">
-            <div class="logo-icon">ðŸ¦</div>
+            <div class="logo-icon">🦐</div>
             <h2>Stasiun Kerang</h2>
         </div>
         <nav class="sidebar-menu">
@@ -64,6 +62,7 @@
             <a href="#" class="menu-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
         </nav>
     </div>
+
     <div class="main-content">
         <div class="topbar"><h1>Pengaturan Sistem</h1></div>
         <div class="content">
@@ -75,18 +74,19 @@
                     </div>
                     <div class="form-group">
                         <label>Nama Restoran</label>
-                        <input type="text" value="Stasiun Kerang">
+                        <input type="text" id="restaurantName" value="Stasiun Kerang">
                     </div>
                     <div class="form-group">
                         <label>Email</label>
-                        <input type="email" value="info@stasiun-kerang.com">
+                        <input type="email" id="restaurantEmail" value="info@stasiun-kerang.com">
                     </div>
                     <div class="form-group">
                         <label>Telepon</label>
-                        <input type="tel" value="+62 21 1234567">
+                        <input type="tel" id="restaurantPhone" value="+62 21 1234567">
                     </div>
-                    <button class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
+                    <button class="btn btn-primary" onclick="saveRestaurantSettings()"><i class="fas fa-save"></i> Simpan</button>
                 </div>
+
                 <div class="settings-card">
                     <div class="card-header">
                         <h2><i class="fas fa-receipt"></i> Pajak & Biaya</h2>
@@ -94,21 +94,15 @@
                     </div>
                     <div class="form-group">
                         <label>Pajak (PB1) %</label>
-                        <input type="number" value="10" step="0.1">
+                        <input type="number" id="taxRate" value="10" step="0.1">
                     </div>
                     <div class="form-group">
                         <label>Biaya Layanan %</label>
-                        <input type="number" value="5" step="0.1">
+                        <input type="number" id="serviceCharge" value="5" step="0.1">
                     </div>
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <h4>Pajak Termasuk</h4>
-                            <p>Harga sudah termasuk pajak</p>
-                        </div>
-                        <label class="toggle-switch"><input type="checkbox"><span class="slider"></span></label>
-                    </div>
-                    <button class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
+                    <button class="btn btn-primary" onclick="saveTaxSettings()"><i class="fas fa-save"></i> Simpan</button>
                 </div>
+
                 <div class="settings-card">
                     <div class="card-header">
                         <h2><i class="fas fa-credit-card"></i> Pembayaran</h2>
@@ -116,22 +110,23 @@
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Tunai (Cash)</h4></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="paymentCash" checked><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Kartu Debit/Kredit</h4></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="paymentCard" checked><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>QR Code (QRIS)</h4></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="paymentQR" checked><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Transfer Bank</h4></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="paymentTransfer" checked><span class="slider"></span></label>
                     </div>
-                    <button class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
+                    <button class="btn btn-primary" onclick="savePaymentMethods()"><i class="fas fa-save"></i> Simpan</button>
                 </div>
+
                 <div class="settings-card">
                     <div class="card-header">
                         <h2><i class="fas fa-bell"></i> Notifikasi</h2>
@@ -139,282 +134,139 @@
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Order Baru</h4><p>Notif order baru</p></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="notifNewOrder" checked><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Stok Rendah</h4><p>Peringatan stok</p></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="notifLowStock" checked><span class="slider"></span></label>
                     </div>
                     <div class="setting-item">
                         <div class="setting-info"><h4>Sound Effect</h4><p>Suara notifikasi</p></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        <label class="toggle-switch"><input type="checkbox" id="notifSound" checked><span class="slider"></span></label>
                     </div>
-                    <button class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
+                    <button class="btn btn-primary" onclick="saveNotificationSettings()"><i class="fas fa-save"></i> Simpan</button>
                 </div>
+
                 <div class="settings-card">
                     <div class="card-header">
                         <h2><i class="fas fa-database"></i> Database</h2>
                         <p>Informasi koneksi</p>
                     </div>
-                    <div class="info-box"><h4>Host</h4><p>mysql.railway.internal</p></div>
-                    <div class="info-box"><h4>Database</h4><p>railway</p></div>
-                    <div class="info-box"><h4>Username</h4><p>root</p></div>
-                    <div class="info-box"><h4>Status</h4><p style="color: #1dd1a1;">âœ“ Terhubung</p></div>
-                    <button class="btn btn-primary"><i class="fas fa-sync"></i> Test Koneksi</button>
-                </div>
-                <div class="settings-card">
-                    <div class="card-header">
-                        <h2><i class="fas fa-cog"></i> Umum</h2>
-                        <p>Pengaturan umum sistem</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Bahasa</label>
-                        <select><option>Bahasa Indonesia</option><option>English</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Zona Waktu</label>
-                        <select><option>Asia/Jakarta (WIB)</option></select>
-                    </div>
-                    <div class="setting-item">
-                        <div class="setting-info"><h4>Mode Gelap</h4></div>
-                        <label class="toggle-switch"><input type="checkbox"><span class="slider"></span></label>
-                    </div>
-                    <div class="setting-item">
-                        <div class="setting-info"><h4>Auto Refresh</h4></div>
-                        <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
-                    </div>
-                    <button class="btn btn-primary"><i class="fas fa-save"></i> Simpan</button>
+                    <div class="info-box"><h4>Host</h4><p id="dbHost">mysql.railway.internal</p></div>
+                    <div class="info-box"><h4>Database</h4><p id="dbName">railway</p></div>
+                    <div class="info-box"><h4>Username</h4><p id="dbUser">root</p></div>
+                    <div class="info-box"><h4>Status</h4><p id="dbStatus" style="color: #1dd1a1;">✓ Terhubung</p></div>
+                    <button class="btn btn-primary" onclick="testDatabaseConnection()"><i class="fas fa-sync"></i> Test Koneksi</button>
                 </div>
             </div>
         </div>
     </div>
-<script>
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user) window.location.href = 'index.html';
 
-    const API_BASE = '/api';
-    let settings = {};
+    <script>
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'index.html';
+        const API_BASE = '/api';
 
-    // Fetch All Settings
-    async function fetchSettings() {
-        try {
-            const response = await fetch(`${API_BASE}/settings.php`);
-            const result = await response.json();
-            
-            if (result.success) {
-                settings = result.data.settings || {};
-                populateSettings();
-            }
-        } catch (error) {
-            console.error('Error fetching settings:', error);
-            loadDefaultSettings();
+        async function fetchSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/settings.php`);
+                const result = await response.json();
+                if (result.success && result.data.settings) {
+                    const settings = result.data.settings;
+                    if (settings.restaurant_name) document.getElementById('restaurantName').value = settings.restaurant_name.value;
+                    if (settings.restaurant_email) document.getElementById('restaurantEmail').value = settings.restaurant_email.value;
+                    if (settings.restaurant_phone) document.getElementById('restaurantPhone').value = settings.restaurant_phone.value;
+                    if (settings.tax_rate) document.getElementById('taxRate').value = parseFloat(settings.tax_rate.value) * 100;
+                    if (settings.service_charge) document.getElementById('serviceCharge').value = parseFloat(settings.service_charge.value) * 100;
+                }
+            } catch (error) { console.error('Error:', error); }
         }
-    }
 
-    function populateSettings() {
-        // Restaurant Info
-        if (settings.restaurant_name) {
-            document.querySelector('input[type="text"][value="Stasiun Kerang"]').value = settings.restaurant_name.value;
+        async function saveRestaurantSettings() {
+            const data = {
+                restaurant_name: document.getElementById('restaurantName').value,
+                restaurant_email: document.getElementById('restaurantEmail').value,
+                restaurant_phone: document.getElementById('restaurantPhone').value
+            };
+            try {
+                for (const [key, value] of Object.entries(data)) {
+                    await saveSetting(key, value, 'string');
+                }
+                alert('Pengaturan restoran berhasil disimpan!');
+            } catch (error) { alert('Gagal menyimpan'); }
         }
-        if (settings.restaurant_email) {
-            document.querySelector('input[type="email"]').value = settings.restaurant_email.value;
+
+        async function saveTaxSettings() {
+            const data = {
+                tax_rate: (parseFloat(document.getElementById('taxRate').value) / 100).toString(),
+                service_charge: (parseFloat(document.getElementById('serviceCharge').value) / 100).toString()
+            };
+            try {
+                for (const [key, value] of Object.entries(data)) {
+                    await saveSetting(key, value, 'decimal');
+                }
+                alert('Pengaturan pajak berhasil disimpan!');
+            } catch (error) { alert('Gagal menyimpan'); }
         }
-        if (settings.restaurant_phone) {
-            document.querySelector('input[type="tel"]').value = settings.restaurant_phone.value;
+
+        async function savePaymentMethods() {
+            const data = {
+                payment_cash: document.getElementById('paymentCash').checked.toString(),
+                payment_card: document.getElementById('paymentCard').checked.toString(),
+                payment_qr: document.getElementById('paymentQR').checked.toString(),
+                payment_transfer: document.getElementById('paymentTransfer').checked.toString()
+            };
+            try {
+                for (const [key, value] of Object.entries(data)) {
+                    await saveSetting(key, value, 'boolean');
+                }
+                alert('Metode pembayaran berhasil disimpan!');
+            } catch (error) { alert('Gagal menyimpan'); }
         }
-        
-        // Tax & Service
-        if (settings.tax_rate) {
-            document.querySelectorAll('input[type="number"]')[0].value = parseFloat(settings.tax_rate.value) * 100;
+
+        async function saveNotificationSettings() {
+            const data = {
+                notif_new_order: document.getElementById('notifNewOrder').checked.toString(),
+                notif_low_stock: document.getElementById('notifLowStock').checked.toString(),
+                notif_sound: document.getElementById('notifSound').checked.toString()
+            };
+            try {
+                for (const [key, value] of Object.entries(data)) {
+                    await saveSetting(key, value, 'boolean');
+                }
+                alert('Pengaturan notifikasi berhasil disimpan!');
+            } catch (error) { alert('Gagal menyimpan'); }
         }
-        if (settings.service_charge) {
-            document.querySelectorAll('input[type="number"]')[1].value = parseFloat(settings.service_charge.value) * 100;
-        }
-        
-        // Payment Methods
-        updatePaymentMethods();
-        
-        // Notifications
-        updateNotificationSettings();
-    }
 
-    function loadDefaultSettings() {
-        settings = {
-            restaurant_name: { value: 'Stasiun Kerang' },
-            restaurant_email: { value: 'info@stasiun-kerang.com' },
-            restaurant_phone: { value: '+62 21 1234567' },
-            tax_rate: { value: '0.10' },
-            service_charge: { value: '0.05' },
-            payment_cash: { value: 'true' },
-            payment_card: { value: 'true' },
-            payment_qr: { value: 'true' },
-            payment_transfer: { value: 'true' },
-            notif_new_order: { value: 'true' },
-            notif_low_stock: { value: 'true' },
-            notif_sound: { value: 'true' }
-        };
-        populateSettings();
-    }
-
-    function updatePaymentMethods() {
-        const paymentToggles = document.querySelectorAll('.setting-item input[type="checkbox"]');
-        if (settings.payment_cash) paymentToggles[0].checked = settings.payment_cash.value === 'true';
-        if (settings.payment_card) paymentToggles[1].checked = settings.payment_card.value === 'true';
-        if (settings.payment_qr) paymentToggles[2].checked = settings.payment_qr.value === 'true';
-        if (settings.payment_transfer) paymentToggles[3].checked = settings.payment_transfer.value === 'true';
-    }
-
-    function updateNotificationSettings() {
-        const notifToggles = document.querySelectorAll('.setting-item input[type="checkbox"]');
-        const offset = 4; // Skip payment toggles
-        if (settings.notif_new_order) notifToggles[offset].checked = settings.notif_new_order.value === 'true';
-        if (settings.notif_low_stock) notifToggles[offset + 1].checked = settings.notif_low_stock.value === 'true';
-        if (settings.notif_sound) notifToggles[offset + 2].checked = settings.notif_sound.value === 'true';
-    }
-
-    // Save Restaurant Settings
-    async function saveRestaurantSettings() {
-        const restaurantData = {
-            restaurant_name: document.querySelector('input[type="text"]').value,
-            restaurant_email: document.querySelector('input[type="email"]').value,
-            restaurant_phone: document.querySelector('input[type="tel"]').value
-        };
-
-        try {
-            for (const [key, value] of Object.entries(restaurantData)) {
-                await saveSetting(key, value, 'string');
-            }
-            alert('Pengaturan restoran berhasil disimpan!');
-        } catch (error) {
-            console.error('Error saving restaurant settings:', error);
-            alert('Gagal menyimpan pengaturan restoran');
-        }
-    }
-
-    // Save Tax & Service Settings
-    async function saveTaxSettings() {
-        const taxData = {
-            tax_rate: (parseFloat(document.querySelectorAll('input[type="number"]')[0].value) / 100).toString(),
-            service_charge: (parseFloat(document.querySelectorAll('input[type="number"]')[1].value) / 100).toString()
-        };
-
-        try {
-            for (const [key, value] of Object.entries(taxData)) {
-                await saveSetting(key, value, 'decimal');
-            }
-            alert('Pengaturan pajak berhasil disimpan!');
-        } catch (error) {
-            console.error('Error saving tax settings:', error);
-            alert('Gagal menyimpan pengaturan pajak');
-        }
-    }
-
-    // Save Payment Methods
-    async function savePaymentMethods() {
-        const paymentToggles = document.querySelectorAll('.setting-item input[type="checkbox"]');
-        const paymentData = {
-            payment_cash: paymentToggles[0].checked.toString(),
-            payment_card: paymentToggles[1].checked.toString(),
-            payment_qr: paymentToggles[2].checked.toString(),
-            payment_transfer: paymentToggles[3].checked.toString()
-        };
-
-        try {
-            for (const [key, value] of Object.entries(paymentData)) {
-                await saveSetting(key, value, 'boolean');
-            }
-            alert('Metode pembayaran berhasil disimpan!');
-        } catch (error) {
-            console.error('Error saving payment methods:', error);
-            alert('Gagal menyimpan metode pembayaran');
-        }
-    }
-
-    // Save Notification Settings
-    async function saveNotificationSettings() {
-        const notifToggles = document.querySelectorAll('.setting-item input[type="checkbox"]');
-        const offset = 4;
-        const notifData = {
-            notif_new_order: notifToggles[offset].checked.toString(),
-            notif_low_stock: notifToggles[offset + 1].checked.toString(),
-            notif_sound: notifToggles[offset + 2].checked.toString()
-        };
-
-        try {
-            for (const [key, value] of Object.entries(notifData)) {
-                await saveSetting(key, value, 'boolean');
-            }
-            alert('Pengaturan notifikasi berhasil disimpan!');
-        } catch (error) {
-            console.error('Error saving notification settings:', error);
-            alert('Gagal menyimpan pengaturan notifikasi');
-        }
-    }
-
-    // Save General Settings
-    async function saveGeneralSettings() {
-        alert('Pengaturan umum berhasil disimpan!');
-    }
-
-    // Generic Save Setting Function
-    async function saveSetting(key, value, type) {
-        try {
+        async function saveSetting(key, value, type) {
             const response = await fetch(`${API_BASE}/settings.php`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    key: key,
-                    value: value,
-                    type: type
-                })
+                body: JSON.stringify({ key, value, type })
             });
-            
             const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.message);
-            }
-        } catch (error) {
-            throw error;
+            if (!result.success) throw new Error(result.message);
         }
-    }
 
-    // Test Database Connection
-    async function testDatabaseConnection() {
-        try {
-            const response = await fetch(`${API_BASE}/settings.php?action=test_db`);
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('✓ Koneksi database berhasil!');
-            } else {
-                alert('✗ Koneksi database gagal: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error testing database:', error);
-            alert('✗ Gagal menguji koneksi database');
+        async function testDatabaseConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/settings.php?action=test_db`);
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('dbStatus').style.color = '#1dd1a1';
+                    document.getElementById('dbStatus').textContent = '✓ Koneksi berhasil!';
+                    alert('✓ Koneksi database berhasil!');
+                } else {
+                    document.getElementById('dbStatus').style.color = '#ff6b6b';
+                    document.getElementById('dbStatus').textContent = '✗ Koneksi gagal';
+                    alert('✗ Koneksi database gagal');
+                }
+            } catch (error) { alert('✗ Gagal menguji koneksi'); }
         }
-    }
 
-    // Add event listeners to save buttons
-    document.addEventListener('DOMContentLoaded', () => {
-        const saveButtons = document.querySelectorAll('.btn-primary');
-        
-        if (saveButtons[0]) saveButtons[0].onclick = saveRestaurantSettings;
-        if (saveButtons[1]) saveButtons[1].onclick = saveTaxSettings;
-        if (saveButtons[2]) saveButtons[2].onclick = savePaymentMethods;
-        if (saveButtons[3]) saveButtons[3].onclick = saveNotificationSettings;
-        if (saveButtons[4]) saveButtons[4].onclick = testDatabaseConnection;
-        if (saveButtons[5]) saveButtons[5].onclick = saveGeneralSettings;
-    });
+        function logout() { if (confirm('Logout?')) { localStorage.removeItem('user'); window.location.href = 'index.html'; } }
 
-    function logout() {
-        if (confirm('Yakin ingin logout?')) {
-            localStorage.removeItem('user');
-            window.location.href = 'index.html';
-        }
-    }
-
-    // Initial load
-    fetchSettings();
-</script>
+        fetchSettings();
+    </script>
+</body>
+</html>
