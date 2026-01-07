@@ -1,7 +1,10 @@
 <?php
+// Prevent any output before headers
+ob_start();
+
 session_start();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -11,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// Try multiple path options
+// Try multiple path options for config
 $configPath = __DIR__ . '/../config/database.php';
 if (!file_exists($configPath)) {
     $configPath = $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
@@ -21,39 +24,41 @@ if (!file_exists($configPath)) {
 }
 
 if (!file_exists($configPath)) {
+    ob_end_clean();
     http_response_code(500);
     die(json_encode([
         'success' => false,
-        'message' => 'Database configuration file not found. Searched: ' . $configPath,
+        'message' => 'Database configuration file not found',
         'timestamp' => date('Y-m-d H:i:s')
     ]));
 }
 
 require_once $configPath;
 
-// Authentication check - COMMENTED OUT FOR TESTING
-// Uncomment after login system is working
-/*
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Unauthorized. Please login first.',
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
+// Helper function to send JSON response
+function sendJsonResponse($data, $statusCode = 200) {
+    ob_end_clean(); // Clear any previous output
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
 }
-*/
 
 try {
-    $db = Database::getInstance()->getConnection();
+    // Get database connection (support both class and function)
+    if (class_exists('Database')) {
+        $db = Database::getInstance()->getConnection();
+    } elseif (function_exists('getDbConnection')) {
+        $db = getDbConnection();
+    } else {
+        throw new Exception('Database connection method not found');
+    }
+    
     $method = $_SERVER['REQUEST_METHOD'];
     
     switch ($method) {
         case 'GET':
             // Check what resource is being requested
             if (isset($_GET['resource'])) {
-                // Handle different resources
                 switch ($_GET['resource']) {
                     case 'categories':
                         // Get all categories with item count
@@ -69,7 +74,7 @@ try {
                         ");
                         $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         
-                        echo json_encode([
+                        sendJsonResponse([
                             'success' => true,
                             'data' => $categories,
                             'count' => count($categories),
@@ -81,23 +86,19 @@ try {
                         // Get menu statistics
                         $stats = [];
                         
-                        // Total items
                         $stmt = $db->query("SELECT COUNT(*) as total FROM menu_items");
                         $stats['total_items'] = (int)$stmt->fetch(PDO::FETCH_ASSOC)['total'];
                         
-                        // Available items
                         $stmt = $db->query("SELECT COUNT(*) as total FROM menu_items WHERE is_available = 1");
                         $stats['available_items'] = (int)$stmt->fetch(PDO::FETCH_ASSOC)['total'];
                         
-                        // Total categories
                         $stmt = $db->query("SELECT COUNT(*) as total FROM categories");
                         $stats['total_categories'] = (int)$stmt->fetch(PDO::FETCH_ASSOC)['total'];
                         
-                        // Average price
                         $stmt = $db->query("SELECT AVG(price) as avg_price FROM menu_items");
                         $stats['average_price'] = (float)$stmt->fetch(PDO::FETCH_ASSOC)['avg_price'];
                         
-                        echo json_encode([
+                        sendJsonResponse([
                             'success' => true,
                             'data' => $stats,
                             'timestamp' => date('Y-m-d H:i:s')
@@ -105,20 +106,17 @@ try {
                         break;
                         
                     default:
-                        http_response_code(400);
-                        echo json_encode([
+                        sendJsonResponse([
                             'success' => false,
-                            'message' => 'Invalid resource requested',
-                            'timestamp' => date('Y-m-d H:i:s')
-                        ]);
+                            'message' => 'Invalid resource requested'
+                        ], 400);
                 }
             } elseif (isset($_GET['id'])) {
-                // Get specific menu item by ID
+                // Get specific menu item
                 $stmt = $db->prepare("
                     SELECT 
                         m.*,
-                        c.name as category_name,
-                        c.description as category_description
+                        c.name as category_name
                     FROM menu_items m
                     LEFT JOIN categories c ON m.category_id = c.id
                     WHERE m.id = ?
@@ -127,21 +125,17 @@ try {
                 $item = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($item) {
-                    // Convert is_available to boolean for easier handling
                     $item['is_available'] = (bool)$item['is_available'];
-                    
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => true,
                         'data' => $item,
                         'timestamp' => date('Y-m-d H:i:s')
                     ]);
                 } else {
-                    http_response_code(404);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'Menu item not found',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
+                        'message' => 'Menu item not found'
+                    ], 404);
                 }
             } else {
                 // Get all menu items with filters
@@ -156,19 +150,16 @@ try {
                 
                 $params = [];
                 
-                // Filter by category
                 if (isset($_GET['category_id']) && $_GET['category_id'] !== '') {
                     $query .= " AND m.category_id = ?";
                     $params[] = $_GET['category_id'];
                 }
                 
-                // Filter by availability
                 if (isset($_GET['available'])) {
                     $query .= " AND m.is_available = ?";
-                    $params[] = $_GET['available'] == 'true' || $_GET['available'] == '1' ? 1 : 0;
+                    $params[] = ($_GET['available'] == 'true' || $_GET['available'] == '1') ? 1 : 0;
                 }
                 
-                // Search by name or description
                 if (isset($_GET['search']) && $_GET['search'] !== '') {
                     $query .= " AND (m.name LIKE ? OR m.description LIKE ?)";
                     $searchTerm = '%' . $_GET['search'] . '%';
@@ -176,135 +167,69 @@ try {
                     $params[] = $searchTerm;
                 }
                 
-                // Price range filter
-                if (isset($_GET['min_price']) && $_GET['min_price'] !== '') {
-                    $query .= " AND m.price >= ?";
-                    $params[] = (float)$_GET['min_price'];
-                }
+                $query .= " ORDER BY c.name, m.name";
                 
-                if (isset($_GET['max_price']) && $_GET['max_price'] !== '') {
-                    $query .= " AND m.price <= ?";
-                    $params[] = (float)$_GET['max_price'];
-                }
-                
-                // Sorting
-                $sortBy = $_GET['sort_by'] ?? 'name';
-                $sortOrder = $_GET['sort_order'] ?? 'ASC';
-                
-                $allowedSortFields = ['name', 'price', 'created_at', 'category_name'];
-                $allowedSortOrders = ['ASC', 'DESC'];
-                
-                if (!in_array($sortBy, $allowedSortFields)) {
-                    $sortBy = 'name';
-                }
-                if (!in_array(strtoupper($sortOrder), $allowedSortOrders)) {
-                    $sortOrder = 'ASC';
-                }
-                
-                if ($sortBy === 'category_name') {
-                    $query .= " ORDER BY c.name $sortOrder, m.name ASC";
-                } else {
-                    $query .= " ORDER BY m.$sortBy $sortOrder";
-                }
-                
-                // Execute query
                 $stmt = $db->prepare($query);
                 $stmt->execute($params);
                 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
-                // Convert is_available to boolean
                 foreach ($items as &$item) {
                     $item['is_available'] = (bool)$item['is_available'];
                 }
                 
-                echo json_encode([
+                sendJsonResponse([
                     'success' => true,
                     'data' => $items,
                     'count' => count($items),
-                    'filters' => [
-                        'category_id' => $_GET['category_id'] ?? null,
-                        'available' => $_GET['available'] ?? null,
-                        'search' => $_GET['search'] ?? null
-                    ],
                     'timestamp' => date('Y-m-d H:i:s')
                 ]);
             }
             break;
             
         case 'POST':
-            // Create new menu item or category
             $data = json_decode(file_get_contents('php://input'), true);
             
             if (!$data) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'Invalid JSON data',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                break;
+                    'message' => 'Invalid JSON data'
+                ], 400);
             }
             
-            // Check if creating category
             if (isset($_GET['resource']) && $_GET['resource'] === 'categories') {
                 // Create category
                 if (!isset($data['name'])) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'Category name is required',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => 'Category name is required'
+                    ], 400);
                 }
                 
-                $stmt = $db->prepare("
-                    INSERT INTO categories (name, description)
-                    VALUES (?, ?)
-                ");
-                
-                $result = $stmt->execute([
-                    $data['name'],
-                    $data['description'] ?? null
-                ]);
+                $stmt = $db->prepare("INSERT INTO categories (name, description) VALUES (?, ?)");
+                $result = $stmt->execute([$data['name'], $data['description'] ?? null]);
                 
                 if ($result) {
-                    $id = $db->lastInsertId();
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => true,
                         'message' => 'Category created successfully',
-                        'data' => ['id' => $id],
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to create category',
+                        'data' => ['id' => $db->lastInsertId()],
                         'timestamp' => date('Y-m-d H:i:s')
                     ]);
                 }
             } else {
                 // Create menu item
                 if (!isset($data['name']) || !isset($data['category_id']) || !isset($data['price'])) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'Missing required fields: name, category_id, price',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => 'Missing required fields: name, category_id, price'
+                    ], 400);
                 }
                 
-                // Validate price
                 if (!is_numeric($data['price']) || $data['price'] < 0) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'Price must be a positive number',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => 'Price must be a positive number'
+                    ], 400);
                 }
                 
                 $stmt = $db->prepare("
@@ -323,18 +248,10 @@ try {
                 ]);
                 
                 if ($result) {
-                    $id = $db->lastInsertId();
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => true,
                         'message' => 'Menu item created successfully',
-                        'data' => ['id' => $id],
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to create menu item',
+                        'data' => ['id' => $db->lastInsertId()],
                         'timestamp' => date('Y-m-d H:i:s')
                     ]);
                 }
@@ -342,30 +259,15 @@ try {
             break;
             
         case 'PUT':
-            // Update menu item or category
             $data = json_decode(file_get_contents('php://input'), true);
             
-            if (!$data) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false,
-                    'message' => 'Invalid JSON data',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                break;
-            }
-            
             if (!isset($_GET['id'])) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'ID is required',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                break;
+                    'message' => 'ID is required'
+                ], 400);
             }
             
-            // Check if updating category
             if (isset($_GET['resource']) && $_GET['resource'] === 'categories') {
                 // Update category
                 $updates = [];
@@ -381,39 +283,20 @@ try {
                 }
                 
                 if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'No fields to update',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => 'No fields to update'
+                    ], 400);
                 }
                 
                 $params[] = $_GET['id'];
-                
-                $stmt = $db->prepare("
-                    UPDATE categories 
-                    SET " . implode(', ', $updates) . "
-                    WHERE id = ?
-                ");
-                
+                $stmt = $db->prepare("UPDATE categories SET " . implode(', ', $updates) . " WHERE id = ?");
                 $result = $stmt->execute($params);
                 
-                if ($result) {
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Category updated successfully',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to update category',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                }
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => 'Category updated successfully'
+                ]);
             } else {
                 // Update menu item
                 $updates = [];
@@ -428,15 +311,6 @@ try {
                     $params[] = $data['category_id'];
                 }
                 if (isset($data['price'])) {
-                    if (!is_numeric($data['price']) || $data['price'] < 0) {
-                        http_response_code(400);
-                        echo json_encode([
-                            'success' => false,
-                            'message' => 'Price must be a positive number',
-                            'timestamp' => date('Y-m-d H:i:s')
-                        ]);
-                        break;
-                    }
                     $updates[] = "price = ?";
                     $params[] = $data['price'];
                 }
@@ -454,153 +328,80 @@ try {
                 }
                 
                 if (empty($updates)) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => 'No fields to update',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => 'No fields to update'
+                    ], 400);
                 }
                 
                 $params[] = $_GET['id'];
-                
-                $stmt = $db->prepare("
-                    UPDATE menu_items 
-                    SET " . implode(', ', $updates) . "
-                    WHERE id = ?
-                ");
-                
+                $stmt = $db->prepare("UPDATE menu_items SET " . implode(', ', $updates) . " WHERE id = ?");
                 $result = $stmt->execute($params);
                 
-                if ($result) {
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Menu item updated successfully',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to update menu item',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                }
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => 'Menu item updated successfully'
+                ]);
             }
             break;
             
         case 'DELETE':
-            // Delete menu item or category
             if (!isset($_GET['id'])) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'ID is required',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                break;
+                    'message' => 'ID is required'
+                ], 400);
             }
             
-            // Check if deleting category
             if (isset($_GET['resource']) && $_GET['resource'] === 'categories') {
-                // Check if category has menu items
+                // Check if category has items
                 $stmt = $db->prepare("SELECT COUNT(*) as count FROM menu_items WHERE category_id = ?");
                 $stmt->execute([$_GET['id']]);
                 $count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
                 
                 if ($count > 0) {
-                    http_response_code(400);
-                    echo json_encode([
+                    sendJsonResponse([
                         'success' => false,
-                        'message' => "Cannot delete category. It has {$count} menu items. Please reassign or delete them first.",
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
+                        'message' => "Cannot delete category. It has {$count} menu items."
+                    ], 400);
                 }
                 
                 $stmt = $db->prepare("DELETE FROM categories WHERE id = ?");
-                $result = $stmt->execute([$_GET['id']]);
-                
-                if ($result) {
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Category deleted successfully',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to delete category',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                }
-            } else {
-                // Delete menu item
-                // Check if item is in any active orders
-                $stmt = $db->prepare("
-                    SELECT COUNT(*) as count 
-                    FROM order_items oi
-                    JOIN orders o ON oi.order_id = o.id
-                    WHERE oi.menu_item_id = ? 
-                    AND o.status NOT IN ('Completed', 'Cancelled')
-                ");
                 $stmt->execute([$_GET['id']]);
-                $count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
                 
-                if ($count > 0) {
-                    http_response_code(400);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Cannot delete menu item. It is in active orders. Consider marking it as unavailable instead.',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                    break;
-                }
-                
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => 'Category deleted successfully'
+                ]);
+            } else {
                 $stmt = $db->prepare("DELETE FROM menu_items WHERE id = ?");
-                $result = $stmt->execute([$_GET['id']]);
+                $stmt->execute([$_GET['id']]);
                 
-                if ($result) {
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Menu item deleted successfully',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                } else {
-                    http_response_code(500);
-                    echo json_encode([
-                        'success' => false,
-                        'message' => 'Failed to delete menu item',
-                        'timestamp' => date('Y-m-d H:i:s')
-                    ]);
-                }
+                sendJsonResponse([
+                    'success' => true,
+                    'message' => 'Menu item deleted successfully'
+                ]);
             }
             break;
             
         default:
-            http_response_code(405);
-            echo json_encode([
+            sendJsonResponse([
                 'success' => false,
-                'message' => 'Method not allowed',
-                'timestamp' => date('Y-m-d H:i:s')
-            ]);
+                'message' => 'Method not allowed'
+            ], 405);
     }
     
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
+    error_log("Database error: " . $e->getMessage());
+    sendJsonResponse([
         'success' => false,
-        'message' => 'Database error: ' . $e->getMessage(),
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
+        'message' => 'Database error occurred'
+    ], 500);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode([
+    error_log("Server error: " . $e->getMessage());
+    sendJsonResponse([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage(),
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
+        'message' => $e->getMessage()
+    ], 500);
 }
 ?>
