@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manajemen Orders - Stasiun Kerang</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="auth.js"></script>
     <style>
         * {
             margin: 0;
@@ -466,7 +467,7 @@
             <li><a href="kitchen.html"><i class="fas fa-fire"></i> Kitchen</a></li>
             <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Laporan</a></li>
             <li><a href="settings.html"><i class="fas fa-cog"></i> Pengaturan</a></li>
-            <li><a href="index.html"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
         </ul>
     </div>
 
@@ -604,12 +605,13 @@
     </div>
 
     <script>
-        // Prevent share-modal.js error
+        // Suppress share-modal errors
         window.addEventListener('error', function(e) {
-            if (e.message.includes('share-modal')) {
+            if (e.message && (e.message.includes('share-modal') || e.message.includes('addEventListener'))) {
                 e.preventDefault();
+                return true;
             }
-        });
+        }, true);
 
         let allOrders = [];
         let selectedMenuItems = [];
