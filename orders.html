@@ -859,9 +859,11 @@
             }
         }
 
-        // Open new order modal
+        <!-- Open new order modal -->
         function openNewOrderModal() {
             document.getElementById('newOrderModal').classList.add('active');
+            selectedMenuItems = [];
+            updateSelectedItemsDisplay();
             loadMenuItems();
         }
 
