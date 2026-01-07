@@ -476,7 +476,7 @@
         <!-- Header -->
         <div class="header">
             <h1>Manajemen Orders</h1>
-            <button class="btn btn-primary" onclick="openNewOrderModal()">
+            <button class="btn btn-primary" onclick="openNewOrderModal(); return false;">
                 <i class="fas fa-plus"></i> Order Baru
             </button>
         </div>
@@ -537,9 +537,9 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Order Baru</h2>
-                <span class="close-modal" onclick="closeNewOrderModal()">&times;</span>
+                <span class="close-modal" onclick="closeNewOrderModal(); return false;">&times;</span>
             </div>
-            <form id="newOrderForm">
+            <form id="newOrderForm" onsubmit="return false;">
                 <div class="form-group">
                     <label>Nomor Meja</label>
                     <input type="text" id="tableNumber" placeholder="Contoh: T01">
@@ -568,7 +568,7 @@
                                 <option value="">-- Pilih Menu --</option>
                             </select>
                             <input type="number" id="menuQuantity" min="1" value="1" placeholder="Qty">
-                            <button type="button" class="btn btn-success" onclick="addMenuItem()">
+                            <button type="button" class="btn btn-success" onclick="addMenuItem(); return false;">
                                 <i class="fas fa-plus"></i> Tambah
                             </button>
                         </div>
@@ -597,7 +597,7 @@
                         <span id="summaryTotal">Rp 0</span>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
+                <button type="button" class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="submitOrder(); return false;">
                     <i class="fas fa-check"></i> Buat Order
                 </button>
             </form>
@@ -627,10 +627,16 @@
                 if (data.success) {
                     menuItems = data.data;
                     const menuSelect = document.getElementById('menuSelect');
+                    
+                    if (!menuSelect) {
+                        console.error('menuSelect element not found');
+                        return;
+                    }
+                    
                     menuSelect.innerHTML = '<option value="">-- Pilih Menu --</option>';
                     
                     menuItems.forEach(item => {
-                        if (item.is_available == 1) {
+                        if (item.is_available == 1 || item.is_available === true) {
                             const option = document.createElement('option');
                             option.value = item.id;
                             option.textContent = `${item.name} - Rp ${formatNumber(item.price)}`;
@@ -643,9 +649,11 @@
                     console.log('✓ Menu items loaded:', menuItems.length);
                 } else {
                     console.error('Failed to load menu items:', data.message);
+                    alert('Gagal memuat menu: ' + data.message);
                 }
             } catch (error) {
                 console.error('Error loading menu items:', error);
+                alert('Error loading menu: ' + error.message);
             }
         }
 
@@ -863,10 +871,35 @@
 
         <!-- Open new order modal -->
         function openNewOrderModal() {
-            document.getElementById('newOrderModal').classList.add('active');
+            console.log('Opening new order modal...');
+            
+            // Reset form
+            const modal = document.getElementById('newOrderModal');
+            if (!modal) {
+                console.error('Modal not found!');
+                return;
+            }
+            
+            // Clear form
+            document.getElementById('tableNumber').value = '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('orderType').value = 'Dine In';
+            document.getElementById('orderNotes').value = '';
+            
+            // Reset selected items
             selectedMenuItems = [];
             updateSelectedItemsDisplay();
-            loadMenuItems();
+            
+            // Show modal
+            modal.classList.add('active');
+            
+            // Load menu items
+            loadMenuItems().then(() => {
+                console.log('Menu items loaded successfully');
+            }).catch(err => {
+                console.error('Failed to load menu items:', err);
+            });
         }
 
         // Close new order modal
