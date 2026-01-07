@@ -1,6 +1,6 @@
 <?php
 /**
- * Database Configuration - Fixed for Railway
+ * Database Configuration - Clean version without duplicate functions
  * Supports both Railway.app production and local development
  */
 
@@ -22,7 +22,7 @@ function getDbConnection() {
             PDO::ATTR_EMULATE_PREPARES => false
         ]);
         
-        // Set charset after connection instead of in DSN options
+        // Set charset after connection
         $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
         
         return $pdo;
@@ -34,8 +34,7 @@ function getDbConnection() {
         header('Content-Type: application/json');
         echo json_encode([
             'status' => 'error',
-            'message' => 'Database connection failed. Please contact administrator.',
-            'error' => $e->getMessage() // Remove this in production
+            'message' => 'Database connection failed. Please contact administrator.'
         ]);
         exit;
     }
@@ -65,60 +64,6 @@ function executeTransaction($pdo, callable $callback) {
         error_log("Transaction failed: " . $e->getMessage());
         throw $e;
     }
-}
-
-// Helper function to generate unique order numbers
-function generateOrderNumber($pdo) {
-    $date = date('Ymd');
-    $prefix = 'ORD-' . $date . '-';
-    
-    $stmt = $pdo->prepare("SELECT order_number FROM orders WHERE order_number LIKE ? ORDER BY id DESC LIMIT 1");
-    $stmt->execute([$prefix . '%']);
-    $lastOrder = $stmt->fetch();
-    
-    if ($lastOrder) {
-        $lastNumber = intval(substr($lastOrder['order_number'], -4));
-        $newNumber = $lastNumber + 1;
-    } else {
-        $newNumber = 1;
-    }
-    
-    return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
-}
-
-// Helper function to generate payment numbers
-function generatePaymentNumber($pdo) {
-    $date = date('Ymd');
-    $prefix = 'PAY-' . $date . '-';
-    
-    $stmt = $pdo->prepare("SELECT payment_number FROM payments WHERE payment_number LIKE ? ORDER BY id DESC LIMIT 1");
-    $stmt->execute([$prefix . '%']);
-    $lastPayment = $stmt->fetch();
-    
-    if ($lastPayment) {
-        $lastNumber = intval(substr($lastPayment['payment_number'], -4));
-        $newNumber = $lastNumber + 1;
-    } else {
-        $newNumber = 1;
-    }
-    
-    return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
-}
-
-// Helper function to format currency
-function formatCurrency($amount) {
-    return 'Rp ' . number_format($amount, 0, ',', '.');
-}
-
-// Helper function to calculate tax (PPN 10%)
-function calculateTax($amount, $rate = 0.10) {
-    return round($amount * $rate, 2);
-}
-
-// Helper function to validate date format
-function isValidDate($date, $format = 'Y-m-d') {
-    $d = DateTime::createFromFormat($format, $date);
-    return $d && $d->format($format) === $date;
 }
 
 // Set timezone
