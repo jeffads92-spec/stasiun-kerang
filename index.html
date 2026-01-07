@@ -3,152 +3,249 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stasiun Kerang - Login</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>Login - Stasiun Kerang POS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; }
-        .container { background: rgba(255,255,255,0.95); padding: 50px 40px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 450px; }
-        .logo-container { text-align: center; margin-bottom: 30px; }
-        .logo { width: 80px; height: 80px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 40px; margin-bottom: 15px; }
-        h1 { color: #333; font-size: 28px; margin-bottom: 8px; font-weight: 700; }
-        .subtitle { color: #666; font-size: 14px; margin-bottom: 30px; }
-        .form-group { margin-bottom: 25px; position: relative; }
-        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; font-size: 14px; }
-        .input-wrapper { position: relative; }
-        .input-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #999; }
-        .form-group input { width: 100%; padding: 15px 15px 15px 45px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px; transition: all 0.3s ease; background: #f8f9fa; }
-        .form-group input:focus { outline: none; border-color: #667eea; background: white; box-shadow: 0 0 0 4px rgba(102,126,234,0.1); }
-        .btn-login { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.6); }
-        .alert { padding: 12px 15px; border-radius: 8px; margin-bottom: 20px; display: none; font-size: 14px; }
-        .alert-success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
-        .alert-error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
-        .quick-login { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 25px 0; }
-        .quick-btn { padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.3s ease; text-align: center; font-size: 13px; font-weight: 600; color: #666; }
-        .quick-btn:hover { border-color: #667eea; color: #667eea; transform: translateY(-2px); }
-        .loading { display: none; text-align: center; margin-top: 15px; }
-        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo i {
+            font-size: 64px;
+            color: #667eea;
+        }
+
+        .logo h1 {
+            margin-top: 15px;
+            color: #2c3e50;
+            font-size: 28px;
+        }
+
+        .logo p {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #7f8c8d;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert.success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .demo-credentials {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        .demo-credentials h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .demo-credentials p {
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
+
+        .demo-credentials strong {
+            color: #2c3e50;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo-container">
-            <div class="logo">🦐</div>
+    <div class="login-container">
+        <div class="logo">
+            <i class="fas fa-shrimp"></i>
             <h1>Stasiun Kerang</h1>
-            <p class="subtitle">Restaurant Management System</p>
+            <p>Point of Sale System</p>
         </div>
-        <div id="alert" class="alert"></div>
+
+        <div id="alertBox" class="alert"></div>
+
         <form id="loginForm">
             <div class="form-group">
-                <label for="username">Username</label>
-                <div class="input-wrapper">
+                <label>Username</label>
+                <div class="input-with-icon">
                     <i class="fas fa-user"></i>
-                    <input type="text" id="username" name="username" placeholder="Masukkan username" required>
+                    <input type="text" id="username" required placeholder="Masukkan username">
                 </div>
             </div>
+
             <div class="form-group">
-                <label for="password">Password</label>
-                <div class="input-wrapper">
+                <label>Password</label>
+                <div class="input-with-icon">
                     <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" placeholder="Masukkan password" required>
+                    <input type="password" id="password" required placeholder="Masukkan password">
                 </div>
             </div>
+
             <button type="submit" class="btn-login">
                 <i class="fas fa-sign-in-alt"></i> Login
             </button>
         </form>
-        <div style="text-align: center; margin: 20px 0; color: #999;">atau login cepat sebagai</div>
-        <div class="quick-login">
-            <button class="quick-btn" onclick="quickLogin('admin', 'admin123')">
-                <i class="fas fa-user-shield"></i><br>Admin
-            </button>
-            <button class="quick-btn" onclick="quickLogin('cashier', 'cashier123')">
-                <i class="fas fa-cash-register"></i><br>Kasir
-            </button>
-            <button class="quick-btn" onclick="quickLogin('kitchen', 'kitchen123')">
-                <i class="fas fa-utensils"></i><br>Dapur
-            </button>
-        </div>
-        <div class="loading">
-            <div class="spinner"></div>
-            <p style="color: #666;">Memproses login...</p>
+
+        <div class="demo-credentials">
+            <h4><i class="fas fa-info-circle"></i> Demo Credentials:</h4>
+            <p><strong>Username:</strong> admin</p>
+            <p><strong>Password:</strong> admin123</p>
         </div>
     </div>
 
     <script>
-        const API_BASE = '/api';
-        const loginForm = document.getElementById('loginForm');
-        const alertBox = document.getElementById('alert');
-        const loadingBox = document.querySelector('.loading');
-
-        function showAlert(message, type) {
-            alertBox.textContent = message;
-            alertBox.className = `alert alert-${type}`;
-            alertBox.style.display = 'block';
-            setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
+        // Check if already logged in
+        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+        if (isLoggedIn === 'true') {
+            window.location.href = 'dashboard.html';
         }
 
-        function quickLogin(username, password) {
-            document.getElementById('username').value = username;
-            document.getElementById('password').value = password;
-            loginForm.dispatchEvent(new Event('submit'));
-        }
-
-        loginForm.addEventListener('submit', async (e) => {
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-
-            if (!username || !password) {
-                showAlert('Username dan password harus diisi!', 'error');
-                return;
-            }
-
-            loadingBox.style.display = 'block';
-
-            try {
-                const response = await fetch(`${API_BASE}/auth.php?action=login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-
-                const result = await response.json();
-                loadingBox.style.display = 'none';
-
-                if (result.success) {
-                    localStorage.setItem('user', JSON.stringify({
-                        id: result.data.user.id,
-                        username: result.data.user.username,
-                        full_name: result.data.user.full_name,
-                        role: result.data.user.role,
-                        session_token: result.data.session_token,
-                        loginTime: new Date().toISOString()
-                    }));
-                    
-                    showAlert('Login berhasil! Mengalihkan...', 'success');
-                    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1000);
-                } else {
-                    showAlert(result.message || 'Login gagal!', 'error');
-                }
-            } catch (error) {
-                console.error('Login error:', error);
-                loadingBox.style.display = 'none';
-                showAlert('Terjadi kesalahan saat login', 'error');
+            
+            // Simple demo authentication
+            // In production, this should call an API endpoint
+            if (username === 'admin' && password === 'admin123') {
+                // Set session
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('username', username);
+                sessionStorage.setItem('userRole', 'admin');
+                
+                showAlert('Login berhasil! Mengalihkan...', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+            } else if (username === 'cashier' && password === 'cashier123') {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('username', username);
+                sessionStorage.setItem('userRole', 'cashier');
+                
+                showAlert('Login berhasil! Mengalihkan...', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 1000);
+            } else {
+                showAlert('Username atau password salah!', 'error');
             }
         });
 
-        // Check if already logged in
-        if (localStorage.getItem('user')) {
-            fetch(`${API_BASE}/auth.php?action=check`)
-                .then(r => r.json())
-                .then(result => {
-                    if (result.success) window.location.href = 'dashboard.html';
-                    else localStorage.removeItem('user');
-                })
-                .catch(() => {});
+        function showAlert(message, type) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.textContent = message;
+            alertBox.className = `alert ${type} show`;
+            
+            if (type === 'error') {
+                setTimeout(() => {
+                    alertBox.classList.remove('show');
+                }, 3000);
+            }
         }
     </script>
 </body>
