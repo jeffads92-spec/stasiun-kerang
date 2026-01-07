@@ -3,13 +3,15 @@ FROM php:8.2-apache
 # Install MySQL extensions
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-# Fix MPM conflict - disable mpm_event, enable mpm_prefork
-RUN a2dismod mpm_event && a2enmod mpm_prefork
+# Fix MPM conflict - remove all MPM modules and enable only prefork
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true
+RUN rm -f /etc/apache2/mods-enabled/mpm_*.load /etc/apache2/mods-enabled/mpm_*.conf
+RUN a2enmod mpm_prefork
 
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Backup original Apache configs before any modification
+# Backup original Apache configs
 RUN cp /etc/apache2/ports.conf /etc/apache2/ports.conf.original && \
     cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf.original
 
@@ -24,8 +26,6 @@ COPY . /var/www/html/
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html
 
-# Apache will listen on this port (Railway will inject PORT env var)
 EXPOSE 8080
 
-# Start using our custom script
 CMD ["/start.sh"]
