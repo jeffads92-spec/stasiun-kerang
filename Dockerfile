@@ -1,19 +1,14 @@
-FROM php:8.2-apache
+FROM php:8.2-cli
 
-# Install MySQL extensions
+RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-# Enable Apache modules
-RUN a2enmod rewrite
+WORKDIR /app
+COPY . /app
 
-# Copy application files
-COPY . /var/www/html/
+EXPOSE 8080
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html
+# Create startup script
+RUN echo '#!/bin/bash\nPORT=${PORT:-8080}\nphp -S 0.0.0.0:$PORT -t .' > /start.sh && chmod +x /start.sh
 
-# Apache listens on port 80 by default
-EXPOSE 80
-
-# Apache runs on port 80, Railway will map it
-CMD ["apache2-foreground"]
+CMD ["/start.sh"]
