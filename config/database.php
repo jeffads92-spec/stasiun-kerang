@@ -1,8 +1,13 @@
 <?php
 /**
- * Database Configuration - Clean version without duplicate functions
+ * Database Configuration - Compatible version
  * Supports both Railway.app production and local development
+ * Provides both function-based and class-based access
  */
+
+// ============================================
+// FUNCTION-BASED APPROACH (Original)
+// ============================================
 
 function getDbConnection() {
     // Railway.app environment variables
@@ -11,10 +16,10 @@ function getDbConnection() {
     $database = getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'stasiun_kerang_pos';
     $username = getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'root';
     $password = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '';
-
+    
     // Build DSN
     $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
-
+    
     try {
         $pdo = new PDO($dsn, $username, $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -66,9 +71,82 @@ function executeTransaction($pdo, callable $callback) {
     }
 }
 
+// ============================================
+// CLASS-BASED APPROACH (For Compatibility)
+// ============================================
+
+class Database {
+    private static $instance = null;
+    private $connection = null;
+    
+    /**
+     * Private constructor
+     */
+    private function __construct() {
+        // Railway.app environment variables
+        $host = getenv('MYSQLHOST') ?: getenv('DB_HOST') ?: 'localhost';
+        $port = getenv('MYSQLPORT') ?: getenv('DB_PORT') ?: '3306';
+        $database = getenv('MYSQLDATABASE') ?: getenv('DB_NAME') ?: 'stasiun_kerang_pos';
+        $username = getenv('MYSQLUSER') ?: getenv('DB_USER') ?: 'root';
+        $password = getenv('MYSQLPASSWORD') ?: getenv('DB_PASSWORD') ?: '';
+        
+        // Build DSN
+        $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
+        
+        try {
+            $this->connection = new PDO($dsn, $username, $password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false
+            ]);
+            
+            // Set charset after connection
+            $this->connection->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+            
+        } catch (PDOException $e) {
+            error_log("Database connection failed: " . $e->getMessage());
+            throw new Exception("Database connection failed. Please contact administrator.");
+        }
+    }
+    
+    /**
+     * Get singleton instance
+     */
+    public static function getInstance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Get PDO connection
+     */
+    public function getConnection() {
+        return $this->connection;
+    }
+    
+    /**
+     * Prevent cloning
+     */
+    private function __clone() {}
+    
+    /**
+     * Prevent unserialization
+     */
+    public function __wakeup() {
+        throw new Exception("Cannot unserialize singleton");
+    }
+}
+
+// ============================================
+// SETUP
+// ============================================
+
 // Set timezone
 date_default_timezone_set('Asia/Jakarta');
 
-// Return connection for scripts that just need the PDO object
-return getDbConnection();
+// For backward compatibility with scripts that use direct include
+// Uncomment the line below if needed
+// return getDbConnection();
 ?>
