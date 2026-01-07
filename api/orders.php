@@ -11,7 +11,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-require_once '../config/database.php';
+// Try multiple path options
+$configPath = __DIR__ . '/../config/database.php';
+if (!file_exists($configPath)) {
+    $configPath = $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
+}
+if (!file_exists($configPath)) {
+    $configPath = dirname(__DIR__) . '/config/database.php';
+}
+
+if (!file_exists($configPath)) {
+    http_response_code(500);
+    die(json_encode([
+        'success' => false,
+        'message' => 'Database configuration file not found',
+        'timestamp' => date('Y-m-d H:i:s')
+    ]));
+}
+
+require_once $configPath;
 
 // Check authentication - COMMENTED OUT FOR TESTING
 // Uncomment this after login is working
