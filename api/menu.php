@@ -1,6 +1,6 @@
 <?php
 /**
- * Menu API - Fixed version with proper includes
+ * Menu API - Complete version with all actions
  */
 
 // Start session
@@ -67,6 +67,9 @@ switch ($action) {
         break;
     case 'get':
         handleGet($pdo);
+        break;
+    case 'categories':
+        handleCategories($pdo);
         break;
     default:
         http_response_code(400);
@@ -143,6 +146,30 @@ function handleGet($pdo) {
         echo json_encode([
             'status' => 'error',
             'message' => 'Failed to fetch menu: ' . $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Get all categories
+ */
+function handleCategories($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT id, name, icon, sort_order 
+                            FROM categories 
+                            WHERE is_active = 1 
+                            ORDER BY sort_order, name");
+        $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'status' => 'success',
+            'data' => $categories
+        ]);
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to fetch categories: ' . $e->getMessage()
         ]);
     }
 }
@@ -375,10 +402,15 @@ function uploadImageLocal($file) {
     }
     
     $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     $maxSize = 5 * 1024 * 1024; // 5MB
     
     // Validate file type
-    if (!in_array($file['type'], $allowedTypes)) {
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    if (!in_array($mimeType, $allowedMimeTypes)) {
         return [
             'success' => false,
             'message' => 'Invalid file type. Only JPG, PNG, GIF, and WEBP allowed'
