@@ -3,10 +3,17 @@ FROM php:8.2-apache
 # Install MySQL extensions
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
+# Fix MPM conflict - disable mpm_event, enable mpm_prefork
+RUN a2dismod mpm_event && a2enmod mpm_prefork
+
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Copy startup script FIRST (before application files)
+# Backup original Apache configs before any modification
+RUN cp /etc/apache2/ports.conf /etc/apache2/ports.conf.original && \
+    cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf.original
+
+# Copy startup script
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
