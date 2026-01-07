@@ -1,456 +1,322 @@
 <?php
-/**
- * Reports & Analytics API
- * Generate various business reports
- */
+// Prevent any output before headers
+ob_start();
 
-header('Content-Type: application/json');
+session_start();
+
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-require_once '../config/database.php';
-require_once '../helpers/functions.php';
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ob_end_clean();
     http_response_code(200);
     exit();
 }
 
-// Authentication required
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    sendResponse(401, false, 'Unauthorized');
+// Try multiple path options
+$configPath = __DIR__ . '/../config/database.php';
+if (!file_exists($configPath)) {
+    $configPath = $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
+}
+if (!file_exists($configPath)) {
+    $configPath = dirname(__DIR__) . '/config/database.php';
+}
+
+if (!file_exists($configPath)) {
+    ob_end_clean();
+    http_response_code(500);
+    die(json_encode([
+        'success' => false,
+        'message' => 'Database configuration file not found'
+    ]));
+}
+
+require_once $configPath;
+
+// Helper function to send JSON response
+function sendJsonResponse($data, $statusCode = 200) {
+    ob_end_clean();
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
 }
 
-// Only admin and cashier can access reports
-if (!in_array($_SESSION['role'], ['admin', 'cashier'])) {
-    sendResponse(403, false, 'Forbidden: Insufficient permissions');
+// Helper function to export to Excel (CSV format)
+function exportToExcel($data, $filename) {
+    ob_end_clean();
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    
+    $output = fopen('php://output', 'w');
+    
+    // Add BOM for UTF-8
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+    
+    if (!empty($data)) {
+        // Write headers
+        fputcsv($output, array_keys($data[0]));
+        
+        // Write data
+        foreach ($data as $row) {
+            fputcsv($output, $row);
+        }
+    }
+    
+    fclose($output);
     exit();
 }
-
-$action = isset($_GET['action']) ? $_GET['action'] : 'summary';
 
 try {
-    $pdo = getDbConnection();
+    // Get database connection
+    if (class_exists('Database')) {
+        $db = Database::getInstance()->getConnection();
+    } elseif (function_exists('getDbConnection')) {
+        $db = getDbConnection();
+    } else {
+        throw new Exception('Database connection method not found');
+    }
+    
+    $action = $_GET['action'] ?? 'summary';
     
     switch ($action) {
         case 'summary':
-            getSalesReport($pdo);
-            break;
-        case 'sales_trend':
-            getSalesTrend($pdo);
-            break;
-        case 'menu_performance':
-            getMenuPerformance($pdo);
-            break;
-        case 'category_breakdown':
-            getCategoryBreakdown($pdo);
-            break;
-        case 'transactions':
-            getTransactions($pdo);
-            break;
-        case 'export':
-            exportReport($pdo);
-            break;
-        default:
-            sendResponse(400, false, 'Invalid action');
-    }
-    
-} catch (Exception $e) {
-    sendResponse(500, false, 'Server error: ' . $e->getMessage());
-}
-
-function getSalesReport($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-7 days'));
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    
-    // Validate date format
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    try {
-        // Total statistics
-        $stmt = $pdo->prepare("
-            SELECT 
-                COUNT(*) as total_transactions,
-                COALESCE(SUM(total), 0) as total_revenue,
-                COALESCE(AVG(total), 0) as average_transaction,
-                COUNT(DISTINCT customer_phone) as unique_customers
-            FROM orders
-            WHERE DATE(created_at) BETWEEN ? AND ?
-            AND status != 'cancelled'
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $summary = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Compare with previous period
-        $daysDiff = (strtotime($endDate) - strtotime($startDate)) / 86400;
-        $prevStartDate = date('Y-m-d', strtotime($startDate . " -{$daysDiff} days"));
-        $prevEndDate = date('Y-m-d', strtotime($endDate . " -{$daysDiff} days"));
-        
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(SUM(total), 0) as prev_revenue
-            FROM orders
-            WHERE DATE(created_at) BETWEEN ? AND ?
-            AND status != 'cancelled'
-        ");
-        $stmt->execute([$prevStartDate, $prevEndDate]);
-        $prevRevenue = $stmt->fetch()['prev_revenue'];
-        
-        $revenueChange = $prevRevenue > 0 ? 
-            (($summary['total_revenue'] - $prevRevenue) / $prevRevenue) * 100 : 0;
-        
-        // Payment method breakdown
-        $stmt = $pdo->prepare("
-            SELECT 
-                p.payment_method,
-                COUNT(*) as transaction_count,
-                COALESCE(SUM(p.amount), 0) as total_amount
-            FROM payments p
-            JOIN orders o ON p.order_id = o.id
-            WHERE DATE(p.created_at) BETWEEN ? AND ?
-            AND p.payment_status = 'completed'
-            GROUP BY p.payment_method
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $paymentBreakdown = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Sales report generated', [
-            'summary' => $summary,
-            'revenue_change' => round($revenueChange, 2),
-            'payment_breakdown' => $paymentBreakdown,
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'previous_period' => [
-                    'start_date' => $prevStartDate,
-                    'end_date' => $prevEndDate
-                ]
-            ]
-        ]);
-        
-    } catch (PDOException $e) {
-        error_log("Sales report error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getSalesTrend($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    
-    // Validate date format
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as orders_count,
-                COALESCE(SUM(total), 0) as revenue,
-                COALESCE(AVG(total), 0) as average_order
-            FROM orders
-            WHERE DATE(created_at) BETWEEN ? AND ?
-            AND status != 'cancelled'
-            GROUP BY DATE(created_at)
-            ORDER BY date ASC
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $trend = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Sales trend retrieved', [
-            'trend' => $trend,
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate
-            ]
-        ]);
-        
-    } catch (PDOException $e) {
-        error_log("Sales trend error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getMenuPerformance($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
-    
-    // Validate parameters
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    if ($limit < 1 || $limit > 100) {
-        sendResponse(400, false, 'Limit must be between 1 and 100');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                m.id, m.name, m.price, m.cost_price,
-                c.name as category_name,
-                COUNT(oi.id) as order_count,
-                COALESCE(SUM(oi.quantity), 0) as total_quantity,
-                COALESCE(SUM(oi.subtotal), 0) as total_revenue,
-                COALESCE(SUM(oi.subtotal - (m.cost_price * oi.quantity)), 0) as profit,
-                ROUND(COALESCE(AVG(oi.quantity), 0), 2) as avg_quantity_per_order
-            FROM menu_items m
-            LEFT JOIN order_items oi ON m.id = oi.menu_item_id
-            LEFT JOIN orders o ON oi.order_id = o.id
-            LEFT JOIN categories c ON m.category_id = c.id
-            WHERE DATE(o.created_at) BETWEEN ? AND ?
-            AND o.status != 'cancelled'
-            GROUP BY m.id
-            ORDER BY total_quantity DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$startDate, $endDate, $limit]);
-        $performance = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Menu performance retrieved', [
-            'performance' => $performance,
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate
-            ]
-        ]);
-        
-    } catch (PDOException $e) {
-        error_log("Menu performance error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getCategoryBreakdown($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    
-    // Validate date format
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                c.id,
-                c.name as category,
-                COUNT(DISTINCT o.id) as orders_count,
-                COALESCE(SUM(oi.quantity), 0) as items_sold,
-                COALESCE(SUM(oi.subtotal), 0) as revenue
-            FROM categories c
-            LEFT JOIN menu_items m ON c.id = m.category_id
-            LEFT JOIN order_items oi ON m.id = oi.menu_item_id
-            LEFT JOIN orders o ON oi.order_id = o.id
-            WHERE DATE(o.created_at) BETWEEN ? AND ?
-            AND o.status != 'cancelled'
-            GROUP BY c.id
-            ORDER BY revenue DESC
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $breakdown = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Category breakdown retrieved', [
-            'breakdown' => $breakdown,
-            'period' => [
-                'start_date' => $startDate,
-                'end_date' => $endDate
-            ]
-        ]);
-        
-    } catch (PDOException $e) {
-        error_log("Category breakdown error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getTransactions($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d');
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 100;
-    $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
-    
-    // Validate parameters
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    if ($limit < 1 || $limit > 500) {
-        sendResponse(400, false, 'Limit must be between 1 and 500');
-        return;
-    }
-    
-    if ($offset < 0) {
-        sendResponse(400, false, 'Offset must be 0 or greater');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                o.id,
-                o.order_number, 
-                o.created_at, 
-                o.customer_name, 
-                o.customer_phone,
-                t.table_number, 
-                o.order_type, 
-                o.total, 
-                o.status,
-                p.payment_method, 
-                p.paid_at,
-                COUNT(oi.id) as items_count
-            FROM orders o
-            LEFT JOIN tables t ON o.table_id = t.id
-            LEFT JOIN payments p ON o.id = p.order_id
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE DATE(o.created_at) BETWEEN ? AND ?
-            GROUP BY o.id
-            ORDER BY o.created_at DESC
-            LIMIT ? OFFSET ?
-        ");
-        $stmt->execute([$startDate, $endDate, $limit, $offset]);
-        $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Get total count
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) as total
-            FROM orders
-            WHERE DATE(created_at) BETWEEN ? AND ?
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $totalCount = $stmt->fetch()['total'];
-        
-        sendResponse(200, true, 'Transactions retrieved', [
-            'transactions' => $transactions,
-            'total_count' => (int)$totalCount,
-            'limit' => $limit,
-            'offset' => $offset,
-            'has_more' => ($offset + count($transactions)) < $totalCount
-        ]);
-        
-    } catch (PDOException $e) {
-        error_log("Transactions error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function exportReport($pdo) {
-    $startDate = isset($_GET['start_date']) ? $_GET['start_date'] : date('Y-m-d', strtotime('-30 days'));
-    $endDate = isset($_GET['end_date']) ? $_GET['end_date'] : date('Y-m-d');
-    $format = isset($_GET['format']) ? $_GET['format'] : 'csv';
-    
-    // Validate parameters
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $endDate)) {
-        sendResponse(400, false, 'Invalid date format. Use YYYY-MM-DD');
-        return;
-    }
-    
-    if (strtotime($startDate) > strtotime($endDate)) {
-        sendResponse(400, false, 'Start date cannot be after end date');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT 
-                o.order_number, 
-                DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') as order_date,
-                o.customer_name, 
-                o.customer_phone,
-                t.table_number, 
-                o.order_type,
-                o.subtotal, 
-                o.tax, 
-                o.service_charge, 
-                o.discount, 
-                o.total,
-                o.status, 
-                p.payment_method,
-                DATE_FORMAT(p.paid_at, '%Y-%m-%d %H:%i:%s') as payment_date
-            FROM orders o
-            LEFT JOIN tables t ON o.table_id = t.id
-            LEFT JOIN payments p ON o.id = p.order_id
-            WHERE DATE(o.created_at) BETWEEN ? AND ?
-            ORDER BY o.created_at DESC
-        ");
-        $stmt->execute([$startDate, $endDate]);
-        $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        if ($format === 'csv') {
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="sales_report_' . date('Ymd_His') . '.csv"');
+            // Get sales summary
+            $startDate = $_GET['start_date'] ?? date('Y-m-01'); // First day of current month
+            $endDate = $_GET['end_date'] ?? date('Y-m-d'); // Today
             
-            $output = fopen('php://output', 'w');
+            // Total sales
+            $stmt = $db->prepare("
+                SELECT 
+                    COUNT(*) as total_orders,
+                    COALESCE(SUM(total), 0) as total_sales,
+                    COALESCE(SUM(subtotal), 0) as subtotal,
+                    COALESCE(SUM(tax), 0) as total_tax,
+                    COALESCE(SUM(service_charge), 0) as total_service
+                FROM orders
+                WHERE DATE(created_at) BETWEEN ? AND ?
+                AND status != 'Cancelled'
+            ");
+            $stmt->execute([$startDate, $endDate]);
+            $summary = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            // Add UTF-8 BOM for Excel compatibility
-            fputs($output, $bom = (chr(0xEF) . chr(0xBB) . chr(0xBF)));
+            // Top selling items
+            $stmt = $db->prepare("
+                SELECT 
+                    m.name,
+                    SUM(oi.quantity) as total_quantity,
+                    SUM(oi.subtotal) as total_revenue
+                FROM order_items oi
+                JOIN menu_items m ON oi.menu_item_id = m.id
+                JOIN orders o ON oi.order_id = o.id
+                WHERE DATE(o.created_at) BETWEEN ? AND ?
+                AND o.status != 'Cancelled'
+                GROUP BY m.id
+                ORDER BY total_quantity DESC
+                LIMIT 10
+            ");
+            $stmt->execute([$startDate, $endDate]);
+            $topItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Header
-            if (!empty($data)) {
-                $headers = array_keys($data[0]);
-                fputcsv($output, $headers);
-            }
+            // Orders by status
+            $stmt = $db->prepare("
+                SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM orders
+                WHERE DATE(created_at) BETWEEN ? AND ?
+                GROUP BY status
+            ");
+            $stmt->execute([$startDate, $endDate]);
+            $byStatus = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
-            // Data
-            foreach ($data as $row) {
-                fputcsv($output, $row);
-            }
-            
-            fclose($output);
-            exit();
-        } else {
-            sendResponse(200, true, 'Export data retrieved', [
-                'data' => $data,
-                'format' => $format,
-                'period' => [
-                    'start_date' => $startDate,
-                    'end_date' => $endDate
+            sendJsonResponse([
+                'success' => true,
+                'data' => [
+                    'summary' => $summary,
+                    'top_items' => $topItems,
+                    'by_status' => $byStatus,
+                    'period' => [
+                        'start' => $startDate,
+                        'end' => $endDate
+                    ]
                 ]
             ]);
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Export report error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
+            break;
+            
+        case 'sales_trend':
+            // Get sales trend by date
+            $startDate = $_GET['start_date'] ?? date('Y-m-01');
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            
+            $stmt = $db->prepare("
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as orders,
+                    COALESCE(SUM(total), 0) as revenue
+                FROM orders
+                WHERE DATE(created_at) BETWEEN ? AND ?
+                AND status != 'Cancelled'
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            ");
+            $stmt->execute([$startDate, $endDate]);
+            $trend = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $trend
+            ]);
+            break;
+            
+        case 'menu_performance':
+            // Menu performance report
+            $startDate = $_GET['start_date'] ?? date('Y-m-01');
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            
+            $stmt = $db->prepare("
+                SELECT 
+                    m.id,
+                    m.name,
+                    c.name as category,
+                    COALESCE(SUM(oi.quantity), 0) as total_sold,
+                    COALESCE(SUM(oi.subtotal), 0) as revenue,
+                    m.price
+                FROM menu_items m
+                LEFT JOIN categories c ON m.category_id = c.id
+                LEFT JOIN order_items oi ON m.id = oi.menu_item_id
+                LEFT JOIN orders o ON oi.order_id = o.id AND DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'Cancelled'
+                GROUP BY m.id
+                ORDER BY total_sold DESC
+            ");
+            $stmt->execute([$startDate, $endDate]);
+            $performance = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $performance
+            ]);
+            break;
+            
+        case 'transactions':
+            // Transaction list
+            $startDate = $_GET['start_date'] ?? date('Y-m-d');
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
+            $offset = ($page - 1) * $limit;
+            
+            $stmt = $db->prepare("
+                SELECT 
+                    o.order_number,
+                    o.created_at,
+                    o.customer_name,
+                    o.order_type,
+                    o.status,
+                    o.total,
+                    t.table_number,
+                    u.username as cashier
+                FROM orders o
+                LEFT JOIN tables t ON o.table_id = t.id
+                LEFT JOIN users u ON o.created_by = u.id
+                WHERE DATE(o.created_at) BETWEEN ? AND ?
+                ORDER BY o.created_at DESC
+                LIMIT ? OFFSET ?
+            ");
+            $stmt->execute([$startDate, $endDate, $limit, $offset]);
+            $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Get total count
+            $stmt = $db->prepare("SELECT COUNT(*) as total FROM orders WHERE DATE(created_at) BETWEEN ? AND ?");
+            $stmt->execute([$startDate, $endDate]);
+            $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $transactions,
+                'pagination' => [
+                    'page' => $page,
+                    'limit' => $limit,
+                    'total' => (int)$total,
+                    'total_pages' => ceil($total / $limit)
+                ]
+            ]);
+            break;
+            
+        case 'export':
+            // Export to CSV
+            $format = $_GET['format'] ?? 'csv';
+            $report_type = $_GET['type'] ?? 'transactions';
+            $startDate = $_GET['start_date'] ?? date('Y-m-01');
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
+            
+            if ($report_type === 'transactions') {
+                $stmt = $db->prepare("
+                    SELECT 
+                        o.order_number as 'Order Number',
+                        DATE_FORMAT(o.created_at, '%Y-%m-%d %H:%i:%s') as 'Date Time',
+                        o.customer_name as 'Customer',
+                        o.order_type as 'Type',
+                        o.status as 'Status',
+                        o.subtotal as 'Subtotal',
+                        o.tax as 'Tax',
+                        o.service_charge as 'Service',
+                        o.total as 'Total',
+                        t.table_number as 'Table',
+                        u.username as 'Cashier'
+                    FROM orders o
+                    LEFT JOIN tables t ON o.table_id = t.id
+                    LEFT JOIN users u ON o.created_by = u.id
+                    WHERE DATE(o.created_at) BETWEEN ? AND ?
+                    ORDER BY o.created_at DESC
+                ");
+                $stmt->execute([$startDate, $endDate]);
+                $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                exportToExcel($data, "transactions_{$startDate}_to_{$endDate}.csv");
+            } elseif ($report_type === 'menu_performance') {
+                $stmt = $db->prepare("
+                    SELECT 
+                        m.name as 'Menu Item',
+                        c.name as 'Category',
+                        m.price as 'Price',
+                        COALESCE(SUM(oi.quantity), 0) as 'Total Sold',
+                        COALESCE(SUM(oi.subtotal), 0) as 'Revenue'
+                    FROM menu_items m
+                    LEFT JOIN categories c ON m.category_id = c.id
+                    LEFT JOIN order_items oi ON m.id = oi.menu_item_id
+                    LEFT JOIN orders o ON oi.order_id = o.id AND DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'Cancelled'
+                    GROUP BY m.id
+                    ORDER BY total_sold DESC
+                ");
+                $stmt->execute([$startDate, $endDate]);
+                $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                exportToExcel($data, "menu_performance_{$startDate}_to_{$endDate}.csv");
+            }
+            break;
+            
+        default:
+            sendJsonResponse([
+                'success' => false,
+                'message' => 'Invalid action'
+            ], 400);
     }
+    
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    sendJsonResponse([
+        'success' => false,
+        'message' => 'Database error occurred'
+    ], 500);
+} catch (Exception $e) {
+    error_log("Server error: " . $e->getMessage());
+    sendJsonResponse([
+        'success' => false,
+        'message' => $e->getMessage()
+    ], 500);
 }
 ?>
