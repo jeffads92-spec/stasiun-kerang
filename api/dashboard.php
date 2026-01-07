@@ -1,192 +1,205 @@
 <?php
-/**
- * Dashboard Statistics API
- * Provides real-time statistics for dashboard
- */
+// Prevent any output before headers
+ob_start();
 
-header('Content-Type: application/json');
+session_start();
+
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-require_once '../config/database.php';
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ob_end_clean();
     http_response_code(200);
     exit();
 }
 
-// Cek otentikasi
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode([
+// Try multiple path options
+$configPath = __DIR__ . '/../config/database.php';
+if (!file_exists($configPath)) {
+    $configPath = $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
+}
+if (!file_exists($configPath)) {
+    $configPath = dirname(__DIR__) . '/config/database.php';
+}
+
+if (!file_exists($configPath)) {
+    ob_end_clean();
+    http_response_code(500);
+    die(json_encode([
         'success' => false,
-        'message' => 'Unauthorized',
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
+        'message' => 'Database configuration file not found'
+    ]));
+}
+
+require_once $configPath;
+
+// Helper function to send JSON response
+function sendJsonResponse($data, $statusCode = 200) {
+    ob_end_clean();
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit();
 }
 
-$action = isset($_GET['action']) ? $_GET['action'] : 'stats';
-
 try {
-    $pdo = getDbConnection();
+    // Get database connection
+    if (class_exists('Database')) {
+        $db = Database::getInstance()->getConnection();
+    } elseif (function_exists('getDbConnection')) {
+        $db = getDbConnection();
+    } else {
+        throw new Exception('Database connection method not found');
+    }
+    
+    $action = $_GET['action'] ?? 'stats';
     
     switch ($action) {
         case 'stats':
-            getDashboardStats($pdo);
+            // Get today's statistics
+            $today = date('Y-m-d');
+            
+            // Total orders today
+            $stmt = $db->prepare("
+                SELECT COUNT(*) as count 
+                FROM orders 
+                WHERE DATE(created_at) = ?
+            ");
+            $stmt->execute([$today]);
+            $totalOrders = (int)$stmt->fetch(PDO::FETCH_ASSOC)['count'];
+            
+            // Revenue today
+            $stmt = $db->prepare("
+                SELECT COALESCE(SUM(total), 0) as revenue 
+                FROM orders 
+                WHERE DATE(created_at) = ? 
+                AND status != 'Cancelled'
+            ");
+            $stmt->execute([$today]);
+            $revenue = (float)$stmt->fetch(PDO::FETCH_ASSOC)['revenue'];
+            
+            // Active orders (not completed or cancelled)
+            $stmt = $db->query("
+                SELECT COUNT(*) as count 
+                FROM orders 
+                WHERE status NOT IN ('Completed', 'Cancelled')
+            ");
+            $activeOrders = (int)$stmt->fetch(PDO::FETCH_ASSOC)['count'];
+            
+            // Calculate table occupancy
+            $stmt = $db->query("
+                SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN status = 'Occupied' THEN 1 ELSE 0 END) as occupied
+                FROM tables
+            ");
+            $tableStats = $stmt->fetch(PDO::FETCH_ASSOC);
+            $totalTables = (int)$tableStats['total'];
+            $occupiedTables = (int)$tableStats['occupied'];
+            $occupancy = $totalTables > 0 ? round(($occupiedTables / $totalTables) * 100) : 0;
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => [
+                    'total_orders' => $totalOrders,
+                    'revenue' => $revenue,
+                    'active_orders' => $activeOrders,
+                    'table_occupancy' => $occupancy,
+                    'occupied_tables' => $occupiedTables,
+                    'total_tables' => $totalTables
+                ]
+            ]);
             break;
+            
         case 'sales':
-            getSalesTrend($pdo);
+            // Get sales trend for last 7 days
+            $stmt = $db->query("
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as orders,
+                    COALESCE(SUM(total), 0) as revenue
+                FROM orders
+                WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                AND status != 'Cancelled'
+                GROUP BY DATE(created_at)
+                ORDER BY date ASC
+            ");
+            $salesTrend = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $salesTrend
+            ]);
             break;
+            
         case 'top_menu':
-            getTopMenu($pdo);
+            // Get top selling menu items (last 30 days)
+            $stmt = $db->query("
+                SELECT 
+                    m.name,
+                    m.price,
+                    SUM(oi.quantity) as total_sold,
+                    SUM(oi.subtotal) as revenue
+                FROM order_items oi
+                JOIN menu_items m ON oi.menu_item_id = m.id
+                JOIN orders o ON oi.order_id = o.id
+                WHERE DATE(o.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                AND o.status != 'Cancelled'
+                GROUP BY m.id
+                ORDER BY total_sold DESC
+                LIMIT 10
+            ");
+            $topMenu = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $topMenu
+            ]);
             break;
+            
         case 'recent_orders':
-            getRecentOrders($pdo);
+            // Get recent orders
+            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
+            
+            $stmt = $db->prepare("
+                SELECT 
+                    o.*,
+                    t.table_number,
+                    u.username as cashier
+                FROM orders o
+                LEFT JOIN tables t ON o.table_id = t.id
+                LEFT JOIN users u ON o.created_by = u.id
+                ORDER BY o.created_at DESC
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            $recentOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            sendJsonResponse([
+                'success' => true,
+                'data' => $recentOrders
+            ]);
             break;
+            
         default:
-            sendResponse(400, false, 'Invalid action');
+            sendJsonResponse([
+                'success' => false,
+                'message' => 'Invalid action'
+            ], 400);
     }
     
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    sendJsonResponse([
+        'success' => false,
+        'message' => 'Database error occurred'
+    ], 500);
 } catch (Exception $e) {
-    sendResponse(500, false, 'Server error: ' . $e->getMessage());
-}
-
-function getDashboardStats($pdo) {
-    $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-    
-    try {
-        // Total orders today
-        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM orders WHERE DATE(created_at) = ?");
-        $stmt->execute([$date]);
-        $totalOrders = $stmt->fetch()['total'];
-        
-        // Total revenue today
-        $stmt = $pdo->prepare("SELECT COALESCE(SUM(total), 0) as revenue FROM orders WHERE DATE(created_at) = ? AND status != 'cancelled'");
-        $stmt->execute([$date]);
-        $totalRevenue = $stmt->fetch()['revenue'];
-        
-        // Active orders
-        $stmt = $pdo->prepare("SELECT COUNT(*) as active FROM orders WHERE status IN ('pending', 'preparing', 'ready') AND DATE(created_at) = ?");
-        $stmt->execute([$date]);
-        $activeOrders = $stmt->fetch()['active'];
-        
-        // Table occupancy
-        $stmt = $pdo->prepare("SELECT COUNT(*) as occupied FROM tables WHERE status = 'occupied'");
-        $stmt->execute();
-        $occupiedTables = $stmt->fetch()['occupied'];
-        
-        $stmt = $pdo->prepare("SELECT COUNT(*) as total FROM tables");
-        $stmt->execute();
-        $totalTables = $stmt->fetch()['total'];
-        
-        $occupancy = $totalTables > 0 ? round(($occupiedTables / $totalTables) * 100, 1) : 0;
-        
-        sendResponse(200, true, 'Statistics retrieved', [
-            'total_orders' => $totalOrders,
-            'total_revenue' => $totalRevenue,
-            'active_orders' => $activeOrders,
-            'table_occupancy' => $occupancy,
-            'occupied_tables' => $occupiedTables,
-            'total_tables' => $totalTables
-        ]);
-        
-    } catch (PDOException $e) {
-        sendResponse(500, false, 'Database error: ' . $e->getMessage());
-    }
-}
-
-function getSalesTrend($pdo) {
-    $days = isset($_GET['days']) ? intval($_GET['days']) : 7;
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT DATE(created_at) as date, 
-                   COALESCE(SUM(total), 0) as revenue,
-                   COUNT(*) as orders
-            FROM orders 
-            WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-            AND status != 'cancelled'
-            GROUP BY DATE(created_at)
-            ORDER BY date ASC
-        ");
-        $stmt->execute([$days]);
-        $trend = $stmt->fetchAll();
-        
-        sendResponse(200, true, 'Sales trend retrieved', ['trend' => $trend]);
-        
-    } catch (PDOException $e) {
-        sendResponse(500, false, 'Database error: ' . $e->getMessage());
-    }
-}
-
-function getTopMenu($pdo) {
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 5;
-    $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT m.name, m.price, m.image,
-                   SUM(oi.quantity) as total_sold,
-                   SUM(oi.subtotal) as total_revenue
-            FROM order_items oi
-            JOIN menu_items m ON oi.menu_item_id = m.id
-            JOIN orders o ON oi.order_id = o.id
-            WHERE DATE(o.created_at) = ? AND o.status != 'cancelled'
-            GROUP BY oi.menu_item_id
-            ORDER BY total_sold DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$date, $limit]);
-        $topMenu = $stmt->fetchAll();
-        
-        sendResponse(200, true, 'Top menu retrieved', ['top_menu' => $topMenu]);
-        
-    } catch (PDOException $e) {
-        sendResponse(500, false, 'Database error: ' . $e->getMessage());
-    }
-}
-
-function getRecentOrders($pdo) {
-    $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 10;
-    
-    try {
-        $stmt = $pdo->prepare("
-            SELECT o.*, t.table_number,
-                   COUNT(oi.id) as item_count
-            FROM orders o
-            LEFT JOIN tables t ON o.table_id = t.id
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE DATE(o.created_at) = CURDATE()
-            GROUP BY o.id
-            ORDER BY o.created_at DESC
-            LIMIT ?
-        ");
-        $stmt->execute([$limit]);
-        $orders = $stmt->fetchAll();
-        
-        sendResponse(200, true, 'Recent orders retrieved', ['orders' => $orders]);
-        
-    } catch (PDOException $e) {
-        sendResponse(500, false, 'Database error: ' . $e->getMessage());
-    }
-}
-
-function sendResponse($code, $success, $message, $data = null) {
-    http_response_code($code);
-    $response = [
-        'success' => $success,
-        'message' => $message,
-        'timestamp' => date('Y-m-d H:i:s')
-    ];
-    
-    if ($data !== null) {
-        $response['data'] = $data;
-    }
-    
-    echo json_encode($response);
-    exit();
+    error_log("Server error: " . $e->getMessage());
+    sendJsonResponse([
+        'success' => false,
+        'message' => $e->getMessage()
+    ], 500);
 }
 ?>
