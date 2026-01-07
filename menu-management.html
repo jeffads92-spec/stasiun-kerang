@@ -174,206 +174,362 @@
         </div>
     </div>
 
-    <script>
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) window.location.href = 'index.html';
-        const API_BASE = '/api';
-        let menuItems = [], categories = [], currentCategory = 'all', editingId = null;
+    <!-- Replace the entire <script> section at the bottom of menu-management.html with this -->
+<script>
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) window.location.href = 'index.html';
+    
+    const API_BASE = 'api';
+    let menuItems = [];
+    let categories = [];
+    let currentCategory = 'all';
+    let editingId = null;
 
-        async function fetchCategories() {
-            try {
-                const response = await fetch(`${API_BASE}/menu.php?resource=categories`);
-                const result = await response.json();
-                if (result.success) {
-                    categories = [
-                        { id: 'all', name: 'Semua Menu', icon: '🍽️' },
-                        ...result.data.categories.map(cat => ({ id: cat.id, name: cat.name, icon: cat.icon || '🍽️' }))
-                    ];
-                } else throw new Error();
-            } catch (error) {
+    // Fetch categories
+    async function fetchCategories() {
+        try {
+            const response = await fetch(`${API_BASE}/menu.php?action=categories`);
+            const result = await response.json();
+            
+            if (result.status === 'success' && result.data) {
+                categories = [
+                    { id: 'all', name: 'Semua Menu', icon: '🍽️' },
+                    ...result.data.map(cat => ({ 
+                        id: cat.id, 
+                        name: cat.name, 
+                        icon: cat.icon || '🍽️' 
+                    }))
+                ];
+            } else {
+                // Fallback categories
                 categories = [
                     { id: 'all', name: 'Semua Menu', icon: '🍽️' },
                     { id: '1', name: 'Seafood', icon: '🦐' },
-                    { id: '2', name: 'Kerang Special', icon: '🦪' }
+                    { id: '2', name: 'Kerang Special', icon: '🦪' },
+                    { id: '3', name: 'Appetizers', icon: '🥗' },
+                    { id: '4', name: 'Main Course', icon: '🍽️' },
+                    { id: '5', name: 'Beverages', icon: '🥤' },
+                    { id: '6', name: 'Desserts', icon: '🍰' }
                 ];
             }
-            renderCategories();
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+            // Use fallback categories
+            categories = [
+                { id: 'all', name: 'Semua Menu', icon: '🍽️' },
+                { id: '1', name: 'Seafood', icon: '🦐' }
+            ];
         }
+        renderCategories();
+    }
 
-        async function fetchMenuItems() {
-            try {
-                let url = `${API_BASE}/menu.php`;
-                if (currentCategory !== 'all') url += `?category=${currentCategory}`;
-                const response = await fetch(url);
-                const result = await response.json();
-                if (result.success) {
-                    menuItems = result.data.items || [];
-                    renderMenu();
-                }
-            } catch (error) { console.error('Error:', error); }
-        }
-
-        function renderCategories() {
-            const tabs = document.getElementById('categoryTabs');
-            tabs.innerHTML = categories.map(cat => `
-                <button class="tab-btn ${currentCategory === cat.id ? 'active' : ''}" onclick="filterByCategory('${cat.id}')">
-                    ${cat.icon} ${cat.name}
-                </button>
-            `).join('');
-        }
-
-        function filterByCategory(categoryId) {
-            currentCategory = categoryId;
-            renderCategories();
-            fetchMenuItems();
-        }
-
-        function renderMenu() {
-            const grid = document.getElementById('menuGrid');
-            let filtered = menuItems;
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            if (searchTerm) {
-                filtered = filtered.filter(m => m.name.toLowerCase().includes(searchTerm) || (m.description && m.description.toLowerCase().includes(searchTerm)));
+    // Fetch menu items
+    async function fetchMenuItems() {
+        try {
+            const response = await fetch(`${API_BASE}/menu.php?action=list`);
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                menuItems = result.data || [];
+                renderMenu();
+            } else {
+                console.error('Error:', result.message);
+                menuItems = [];
+                renderMenu();
             }
-            if (filtered.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #999;"><i class="fas fa-utensils" style="font-size: 60px; opacity: 0.3;"></i><h3>Tidak ada menu</h3></div>';
-                return;
-            }
-            grid.innerHTML = filtered.map(item => `
-                <div class="menu-card">
-                    <div class="menu-image">
-                        ${getMenuEmoji(item.category_name)}
-                        <span class="menu-badge ${item.is_available ? 'badge-available' : 'badge-unavailable'}">
-                            ${item.is_available ? '✓ Tersedia' : '✗ Habis'}
-                        </span>
+        } catch (error) {
+            console.error('Error fetching menu:', error);
+            alert('Gagal memuat data menu');
+        }
+    }
+
+    // Render category tabs
+    function renderCategories() {
+        const tabs = document.getElementById('categoryTabs');
+        tabs.innerHTML = categories.map(cat => `
+            <button class="tab-btn ${currentCategory === cat.id ? 'active' : ''}" 
+                    onclick="filterByCategory('${cat.id}')">
+                ${cat.icon} ${cat.name}
+            </button>
+        `).join('');
+    }
+
+    // Filter by category
+    function filterByCategory(categoryId) {
+        currentCategory = categoryId;
+        renderCategories();
+        renderMenu();
+    }
+
+    // Render menu items
+    function renderMenu() {
+        const grid = document.getElementById('menuGrid');
+        let filtered = menuItems;
+        
+        // Filter by category
+        if (currentCategory !== 'all') {
+            filtered = filtered.filter(m => m.category_id == currentCategory);
+        }
+        
+        // Filter by search
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        if (searchTerm) {
+            filtered = filtered.filter(m => 
+                m.name.toLowerCase().includes(searchTerm) || 
+                (m.description && m.description.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        if (filtered.length === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #999;">
+                    <i class="fas fa-utensils" style="font-size: 60px; opacity: 0.3;"></i>
+                    <h3>Tidak ada menu</h3>
+                    <p>Klik "Tambah Menu" untuk menambahkan menu baru</p>
+                </div>
+            `;
+            return;
+        }
+        
+        grid.innerHTML = filtered.map(item => `
+            <div class="menu-card">
+                <div class="menu-image">
+                    ${item.image ? `<img src="uploads/${item.image}" style="width:100%; height:100%; object-fit:cover;">` : getMenuEmoji(item.category_name)}
+                    <span class="menu-badge ${item.is_available ? 'badge-available' : 'badge-unavailable'}">
+                        ${item.is_available ? '✓ Tersedia' : '✗ Habis'}
+                    </span>
+                </div>
+                <div class="menu-body">
+                    <div class="menu-name">${escapeHtml(item.name)}</div>
+                    <div class="menu-description">${escapeHtml(item.description) || '-'}</div>
+                    <div class="menu-price">${formatCurrency(item.price)}</div>
+                    <div class="menu-meta">
+                        <span><i class="fas fa-clock"></i> ${item.preparation_time || 15} min</span>
+                        <span><i class="fas fa-fire"></i> ${getSpicyLabel(item.spicy_level)}</span>
                     </div>
-                    <div class="menu-body">
-                        <div class="menu-name">${item.name}</div>
-                        <div class="menu-description">${item.description || '-'}</div>
-                        <div class="menu-price">${formatCurrency(item.price)}</div>
-                        <div class="menu-meta">
-                            <span><i class="fas fa-clock"></i> ${item.preparation_time || 15} min</span>
-                            <span><i class="fas fa-fire"></i> ${getSpicyLabel(item.spicy_level)}</span>
-                        </div>
-                        <div class="menu-actions">
-                            <button class="btn btn-sm btn-info" onclick="editMenu(${item.id})"><i class="fas fa-edit"></i></button>
-                            <button class="btn btn-sm ${item.is_available ? 'btn-warning' : 'btn-success'}" onclick="toggleAvailability(${item.id})">
-                                <i class="fas fa-${item.is_available ? 'eye-slash' : 'eye'}"></i>
-                            </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteMenu(${item.id})"><i class="fas fa-trash"></i></button>
-                        </div>
+                    <div class="menu-actions">
+                        <button class="btn btn-sm btn-info" onclick="editMenu(${item.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm ${item.is_available ? 'btn-warning' : 'btn-success'}" 
+                                onclick="toggleAvailability(${item.id})">
+                            <i class="fas fa-${item.is_available ? 'eye-slash' : 'eye'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteMenu(${item.id}, '${escapeHtml(item.name)}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
-            `).join('');
-        }
+            </div>
+        `).join('');
+    }
 
-        function getMenuEmoji(category) {
-            const emojis = { 'Seafood': '🦐', 'Kerang': '🦪', 'Appetizers': '🥗', 'Beverages': '🥤' };
-            return emojis[category] || '🍽️';
-        }
+    // Helper functions
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
-        function getSpicyLabel(level) {
-            const labels = { 'none': 'Tidak', 'mild': 'Ringan', 'medium': 'Sedang', 'hot': 'Pedas' };
-            return labels[level] || 'Tidak';
-        }
+    function getMenuEmoji(category) {
+        const emojis = { 
+            'Seafood': '🦐', 
+            'Kerang Special': '🦪', 
+            'Appetizers': '🥗', 
+            'Beverages': '🥤',
+            'Main Course': '🍽️',
+            'Desserts': '🍰'
+        };
+        return emojis[category] || '🍽️';
+    }
 
-        function formatCurrency(amount) { return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
-        function searchMenu() { renderMenu(); }
+    function getSpicyLabel(level) {
+        const labels = { 
+            'none': 'Tidak', 
+            'mild': 'Ringan', 
+            'medium': 'Sedang', 
+            'hot': 'Pedas',
+            'very_hot': 'Sangat Pedas'
+        };
+        return labels[level] || 'Tidak';
+    }
 
-        function openAddModal() {
-            editingId = null;
-            document.getElementById('modalTitle').textContent = 'Tambah Menu Baru';
-            document.getElementById('menuForm').reset();
-            document.getElementById('menuAvailable').checked = true;
-            document.getElementById('menuModal').style.display = 'block';
-        }
+    function formatCurrency(amount) { 
+        return 'Rp ' + Math.floor(amount).toLocaleString('id-ID');
+    }
 
-        async function editMenu(id) {
-            try {
-                const response = await fetch(`${API_BASE}/menu.php?id=${id}`);
-                const result = await response.json();
-                if (result.success) {
-                    editingId = id;
-                    const item = result.data.item;
-                    document.getElementById('modalTitle').textContent = 'Edit Menu';
-                    document.getElementById('menuId').value = item.id;
-                    document.getElementById('menuName').value = item.name;
-                    document.getElementById('menuCategory').value = item.category_id;
-                    document.getElementById('menuPrice').value = item.price;
-                    document.getElementById('menuCost').value = item.cost_price || 0;
-                    document.getElementById('menuDescription').value = item.description || '';
-                    document.getElementById('menuPrepTime').value = item.preparation_time || 15;
-                    document.getElementById('menuSpicy').value = item.spicy_level || 'none';
-                    document.getElementById('menuAvailable').checked = item.is_available;
-                    document.getElementById('menuFeatured').checked = item.is_featured;
-                    document.getElementById('menuModal').style.display = 'block';
-                }
-            } catch (error) { alert('Gagal memuat data'); }
-        }
+    function searchMenu() { 
+        renderMenu(); 
+    }
 
-        function closeModal() { document.getElementById('menuModal').style.display = 'none'; }
+    // Open add modal
+    function openAddModal() {
+        editingId = null;
+        document.getElementById('modalTitle').textContent = 'Tambah Menu Baru';
+        document.getElementById('menuForm').reset();
+        document.getElementById('menuId').value = '';
+        document.getElementById('menuAvailable').checked = true;
+        document.getElementById('menuModal').style.display = 'block';
+    }
 
-        document.getElementById('menuForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = {
-                category_id: parseInt(document.getElementById('menuCategory').value),
-                name: document.getElementById('menuName').value,
-                description: document.getElementById('menuDescription').value,
-                price: parseFloat(document.getElementById('menuPrice').value),
-                cost_price: parseFloat(document.getElementById('menuCost').value) || 0,
-                preparation_time: parseInt(document.getElementById('menuPrepTime').value),
-                spicy_level: document.getElementById('menuSpicy').value,
-                is_available: document.getElementById('menuAvailable').checked,
-                is_featured: document.getElementById('menuFeatured').checked
-            };
-            try {
-                const method = editingId ? 'PUT' : 'POST';
-                const url = editingId ? `${API_BASE}/menu.php?id=${editingId}` : `${API_BASE}/menu.php`;
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(editingId ? 'Menu berhasil diupdate!' : 'Menu berhasil ditambahkan!');
-                    closeModal();
-                    fetchMenuItems();
-                } else alert('Error: ' + result.message);
-            } catch (error) { alert('Gagal menyimpan menu'); }
-        });
-
-        async function toggleAvailability(id) {
-            try {
-                const item = menuItems.find(m => m.id === id);
-                const response = await fetch(`${API_BASE}/menu.php?id=${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ is_available: !item.is_available })
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert(`Menu ${!item.is_available ? 'tersedia' : 'tidak tersedia'}`);
-                    fetchMenuItems();
-                } else alert('Error: ' + result.message);
-            } catch (error) { alert('Gagal update status'); }
-        }
-
-        async function deleteMenu(id) {
-            if (confirm('Yakin hapus menu?')) {
-                try {
-                    const response = await fetch(`${API_BASE}/menu.php?id=${id}`, { method: 'DELETE' });
-                    const result = await response.json();
-                    if (result.success) { alert('Menu berhasil dihapus!'); fetchMenuItems(); }
-                    else alert('Error: ' + result.message);
-                } catch (error) { alert('Gagal menghapus'); }
+    // Edit menu
+    async function editMenu(id) {
+        try {
+            const response = await fetch(`${API_BASE}/menu.php?action=get&id=${id}`);
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                editingId = id;
+                const item = result.data;
+                
+                document.getElementById('modalTitle').textContent = 'Edit Menu';
+                document.getElementById('menuId').value = item.id;
+                document.getElementById('menuName').value = item.name;
+                document.getElementById('menuCategory').value = item.category_id;
+                document.getElementById('menuPrice').value = item.price;
+                document.getElementById('menuCost').value = item.cost_price || '';
+                document.getElementById('menuDescription').value = item.description || '';
+                document.getElementById('menuPrepTime').value = item.preparation_time || 15;
+                document.getElementById('menuSpicy').value = item.spicy_level || 'none';
+                document.getElementById('menuAvailable').checked = item.is_available == 1;
+                document.getElementById('menuFeatured').checked = item.is_featured == 1;
+                document.getElementById('menuModal').style.display = 'block';
+            } else {
+                alert('Gagal memuat data menu: ' + result.message);
             }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Gagal memuat data menu');
         }
+    }
 
-        function logout() { if (confirm('Logout?')) { localStorage.removeItem('user'); window.location.href = 'index.html'; } }
+    // Close modal
+    function closeModal() { 
+        document.getElementById('menuModal').style.display = 'none'; 
+    }
 
-        fetchCategories();
-        fetchMenuItems();
-    </script>
+    // Form submit handler
+    document.getElementById('menuForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData();
+        
+        // Add action
+        if (editingId) {
+            formData.append('action', 'update');
+            formData.append('id', editingId);
+        } else {
+            formData.append('action', 'add');
+        }
+        
+        // Add form fields
+        formData.append('category_id', document.getElementById('menuCategory').value);
+        formData.append('name', document.getElementById('menuName').value);
+        formData.append('description', document.getElementById('menuDescription').value);
+        formData.append('price', document.getElementById('menuPrice').value);
+        formData.append('cost_price', document.getElementById('menuCost').value || '0');
+        formData.append('preparation_time', document.getElementById('menuPrepTime').value);
+        formData.append('spicy_level', document.getElementById('menuSpicy').value);
+        
+        // Add checkboxes
+        if (document.getElementById('menuAvailable').checked) {
+            formData.append('is_available', '1');
+        }
+        if (document.getElementById('menuFeatured').checked) {
+            formData.append('is_featured', '1');
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE}/menu.php`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert(editingId ? 'Menu berhasil diupdate!' : 'Menu berhasil ditambahkan!');
+                closeModal();
+                fetchMenuItems();
+            } else {
+                alert('Error: ' + (result.message || 'Gagal menyimpan menu'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Gagal menyimpan menu: ' + error.message);
+        }
+    });
+
+    // Toggle availability
+    async function toggleAvailability(id) {
+        try {
+            const item = menuItems.find(m => m.id === id);
+            if (!item) return;
+            
+            const formData = new FormData();
+            formData.append('action', 'update');
+            formData.append('id', id);
+            formData.append('is_available', item.is_available ? '0' : '1');
+            
+            const response = await fetch(`${API_BASE}/menu.php`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert(`Menu ${item.is_available ? 'tidak tersedia' : 'tersedia'}`);
+                fetchMenuItems();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Gagal update status');
+        }
+    }
+
+    // Delete menu
+    async function deleteMenu(id, name) {
+        if (!confirm(`Yakin hapus menu "${name}"?`)) return;
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', id);
+            
+            const response = await fetch(`${API_BASE}/menu.php`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                alert('Menu berhasil dihapus!');
+                fetchMenuItems();
+            } else {
+                alert('Error: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Gagal menghapus menu');
+        }
+    }
+
+    // Logout
+    function logout() {
+        if (confirm('Yakin ingin logout?')) {
+            localStorage.removeItem('user');
+            window.location.href = 'index.html';
+        }
+    }
+
+    // Initialize
+    fetchCategories();
+    fetchMenuItems();
+</script>
 </body>
 </html>
