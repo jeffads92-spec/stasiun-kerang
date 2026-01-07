@@ -9,6 +9,17 @@ echo "Starting Apache Configuration"
 echo "Port: $PORT"
 echo "===================================="
 
+# Use template files to avoid repeated sed replacements
+# Copy from original Apache config (only first time)
+if [ ! -f /etc/apache2/ports.conf.original ]; then
+    cp /etc/apache2/ports.conf /etc/apache2/ports.conf.original
+    cp /etc/apache2/sites-available/000-default.conf /etc/apache2/sites-available/000-default.conf.original
+fi
+
+# Always start from original template
+cp /etc/apache2/ports.conf.original /etc/apache2/ports.conf
+cp /etc/apache2/sites-available/000-default.conf.original /etc/apache2/sites-available/000-default.conf
+
 # Update Apache ports.conf
 echo "Updating /etc/apache2/ports.conf..."
 sed -i "s/Listen 80/Listen $PORT/g" /etc/apache2/ports.conf
@@ -20,8 +31,8 @@ sed -i "s/<VirtualHost \*:80>/<VirtualHost *:$PORT>/g" /etc/apache2/sites-availa
 # Verify changes
 echo "===================================="
 echo "Apache Configuration:"
-cat /etc/apache2/ports.conf | grep Listen
-cat /etc/apache2/sites-available/000-default.conf | grep VirtualHost
+grep -E "^Listen" /etc/apache2/ports.conf
+grep "VirtualHost" /etc/apache2/sites-available/000-default.conf | head -1
 echo "===================================="
 
 echo "Starting Apache on port $PORT..."
