@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-require_once '../config/database.php';
+require_once $_SERVER['DOCUMENT_ROOT'] . '/config/database.php';
 
 // Authentication check - COMMENTED OUT FOR TESTING
 // Uncomment after login system is working
