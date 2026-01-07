@@ -223,7 +223,7 @@
             <li><a href="kitchen.html"><i class="fas fa-fire"></i> Kitchen</a></li>
             <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Laporan</a></li>
             <li><a href="settings.html"><i class="fas fa-cog"></i> Pengaturan</a></li>
-            <li><a href="index.html"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            <li><a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
         </ul>
     </div>
 
@@ -287,6 +287,25 @@
     </div>
 
     <script>
+        // Check authentication
+        window.addEventListener('DOMContentLoaded', function() {
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            if (!isLoggedIn || isLoggedIn !== 'true') {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Initialize dashboard
+            loadDashboardStats();
+            loadRecentOrders();
+            
+            // Refresh every 30 seconds
+            setInterval(() => {
+                loadDashboardStats();
+                loadRecentOrders();
+            }, 30000);
+        });
+
         // Load dashboard stats
         async function loadDashboardStats() {
             try {
@@ -376,6 +395,15 @@
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Yakin ingin logout?')) {
+                sessionStorage.clear();
+                window.location.href = 'index.html';
+            }
+            return false;
         }
 
         // Initialize dashboard
