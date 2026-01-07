@@ -234,16 +234,16 @@ try {
                 
                 $stmt = $db->prepare("
                     INSERT INTO menu_items 
-                    (name, category_id, price, description, image_url, is_available)
+                    (category_id, name, description, image_url, price, is_available)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
                 
                 $result = $stmt->execute([
-                    $data['name'],
                     $data['category_id'],
-                    $data['price'],
+                    $data['name'],
                     $data['description'] ?? null,
                     $data['image_url'] ?? null,
+                    $data['price'],
                     isset($data['is_available']) ? ($data['is_available'] ? 1 : 0) : 1
                 ]);
                 
