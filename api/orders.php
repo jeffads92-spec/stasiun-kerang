@@ -1,12 +1,16 @@
 <?php
+// Prevent any output before headers
+ob_start();
+
 session_start();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    ob_end_clean();
     http_response_code(200);
     exit();
 }
@@ -21,6 +25,7 @@ if (!file_exists($configPath)) {
 }
 
 if (!file_exists($configPath)) {
+    ob_end_clean();
     http_response_code(500);
     die(json_encode([
         'success' => false,
@@ -30,6 +35,14 @@ if (!file_exists($configPath)) {
 }
 
 require_once $configPath;
+
+// Helper function to send JSON response
+function sendJsonResponse($data, $statusCode = 200) {
+    ob_end_clean();
+    http_response_code($statusCode);
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit();
+}
 
 // Check authentication - COMMENTED OUT FOR TESTING
 // Uncomment this after login is working
@@ -46,7 +59,15 @@ if (!isset($_SESSION['user_id'])) {
 */
 
 try {
-    $db = Database::getInstance()->getConnection();
+    // Get database connection (support both class and function)
+    if (class_exists('Database')) {
+        $db = Database::getInstance()->getConnection();
+    } elseif (function_exists('getDbConnection')) {
+        $db = getDbConnection();
+    } else {
+        throw new Exception('Database connection method not found');
+    }
+    
     $method = $_SERVER['REQUEST_METHOD'];
     
     switch ($method) {
@@ -167,7 +188,7 @@ try {
                 $stmt->execute($countParams);
                 $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
                 
-                echo json_encode([
+                sendJsonResponse([
                     'success' => true,
                     'data' => $orders,
                     'pagination' => [
@@ -187,13 +208,10 @@ try {
             
             // Validate required fields
             if (!isset($data['order_type']) || !isset($data['items']) || empty($data['items'])) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'Missing required fields: order_type and items are required',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                exit();
+                    'message' => 'Missing required fields: order_type and items are required'
+                ], 400);
             }
             
             $db->beginTransaction();
@@ -266,7 +284,7 @@ try {
                 
                 $db->commit();
                 
-                echo json_encode([
+                sendJsonResponse([
                     'success' => true,
                     'message' => 'Order created successfully',
                     'data' => [
@@ -285,13 +303,10 @@ try {
         case 'PUT':
             // Update order
             if (!isset($_GET['id'])) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'Order ID is required',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                exit();
+                    'message' => 'Order ID is required'
+                ], 400);
             }
             
             $data = json_decode(file_get_contents('php://input'), true);
@@ -325,13 +340,10 @@ try {
             }
             
             if (empty($updates)) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'No fields to update',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                exit();
+                    'message' => 'No fields to update'
+                ], 400);
             }
             
             $params[] = $_GET['id'];
@@ -356,31 +368,25 @@ try {
                     $stmt->execute([$_GET['id']]);
                 }
                 
-                echo json_encode([
+                sendJsonResponse([
                     'success' => true,
-                    'message' => 'Order updated successfully',
-                    'timestamp' => date('Y-m-d H:i:s')
+                    'message' => 'Order updated successfully'
                 ]);
             } else {
-                http_response_code(500);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'Failed to update order',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
+                    'message' => 'Failed to update order'
+                ], 500);
             }
             break;
             
         case 'DELETE':
             // Cancel order
             if (!isset($_GET['id'])) {
-                http_response_code(400);
-                echo json_encode([
+                sendJsonResponse([
                     'success' => false,
-                    'message' => 'Order ID is required',
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                exit();
+                    'message' => 'Order ID is required'
+                ], 400);
             }
             
             $db->beginTransaction();
@@ -405,10 +411,9 @@ try {
                 
                 $db->commit();
                 
-                echo json_encode([
+                sendJsonResponse([
                     'success' => true,
-                    'message' => 'Order cancelled successfully',
-                    'timestamp' => date('Y-m-d H:i:s')
+                    'message' => 'Order cancelled successfully'
                 ]);
             } catch (Exception $e) {
                 $db->rollBack();
@@ -417,20 +422,23 @@ try {
             break;
             
         default:
-            http_response_code(405);
-            echo json_encode([
+            sendJsonResponse([
                 'success' => false,
-                'message' => 'Method not allowed',
-                'timestamp' => date('Y-m-d H:i:s')
-            ]);
+                'message' => 'Method not allowed'
+            ], 405);
     }
     
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode([
+} catch (PDOException $e) {
+    error_log("Database error: " . $e->getMessage());
+    sendJsonResponse([
         'success' => false,
-        'message' => 'Server error: ' . $e->getMessage(),
-        'timestamp' => date('Y-m-d H:i:s')
-    ]);
+        'message' => 'Database error occurred'
+    ], 500);
+} catch (Exception $e) {
+    error_log("Server error: " . $e->getMessage());
+    sendJsonResponse([
+        'success' => false,
+        'message' => $e->getMessage()
+    ], 500);
 }
 ?>
