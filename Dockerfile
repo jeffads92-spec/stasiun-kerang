@@ -1,14 +1,29 @@
-FROM php:8.2-cli
+FROM php:8.2-apache
 
-RUN apt-get update && apt-get install -y default-mysql-client && rm -rf /var/lib/apt/lists/*
+# Install MySQL extensions
 RUN docker-php-ext-install pdo pdo_mysql mysqli
 
-WORKDIR /app
-COPY . /app
+# Enable Apache mod_rewrite
+RUN a2enmod rewrite
 
-EXPOSE 8080
+# Configure Apache to listen on PORT from Railway
+RUN sed -i 's/Listen 80/Listen ${PORT:-80}/' /etc/apache2/ports.conf && \
+    sed -i 's/:80/:${PORT:-80}/' /etc/apache2/sites-available/000-default.conf
 
-# Create startup script
-RUN echo '#!/bin/bash\nPORT=${PORT:-8080}\nphp -S 0.0.0.0:$PORT -t .' > /start.sh && chmod +x /start.sh
+# Copy application files
+COPY . /var/www/html/
+
+# Set proper permissions
+RUN chown -R www-data:www-data /var/www/html && \
+    chmod -R 755 /var/www/html
+
+# Create startup script to replace PORT variable
+RUN echo '#!/bin/bash\n\
+PORT=${PORT:-80}\n\
+sed -i "s/\${PORT}/$PORT/g" /etc/apache2/ports.conf\n\
+sed -i "s/\${PORT}/$PORT/g" /etc/apache2/sites-available/000-default.conf\n\
+apache2-foreground' > /start.sh && chmod +x /start.sh
+
+EXPOSE ${PORT:-80}
 
 CMD ["/start.sh"]
