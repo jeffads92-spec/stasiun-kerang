@@ -1,200 +1,117 @@
 <?php
-/**
- * Debug Menu API - Check what's happening when adding menu
- */
+// Support both function and class approach
+if (file_exists('config/database.php')) {
+    require_once 'config/database.php';
+} elseif (file_exists(__DIR__ . '/config/database.php')) {
+    require_once __DIR__ . '/config/database.php';
+}
 
-// Enable all error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('log_errors', 1);
-
-// Log all requests
-file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Debug started\n", FILE_APPEND);
-
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Debug Menu Add</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 8px; }
-        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
-        .response { margin-top: 20px; padding: 15px; background: #f4f4f4; border-radius: 5px; }
-        .error { color: red; }
-        .success { color: green; }
-    </style>
-</head>
-<body>
-    <h2>🐛 Debug: Add Menu Item</h2>
+try {
+    // Try class approach first, fall back to function
+    if (class_exists('Database')) {
+        $db = Database::getInstance()->getConnection();
+    } else {
+        $db = getDbConnection();
+    }
     
-    <form id="debugForm" enctype="multipart/form-data">
-        <div class="form-group">
-            <label>Category:</label>
-            <select name="category_id" required>
-                <?php
-                require_once 'config/database.php';
-                $pdo = getDbConnection();
-                $categories = $pdo->query("SELECT id, name FROM categories ORDER BY name")->fetchAll();
-                foreach ($categories as $cat) {
-                    echo "<option value='{$cat['id']}'>{$cat['name']}</option>";
-                }
-                ?>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label>Menu Name:</label>
-            <input type="text" name="name" value="Test Menu Debug" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Description:</label>
-            <textarea name="description" rows="3">This is a test description</textarea>
-        </div>
-        
-        <div class="form-group">
-            <label>Price:</label>
-            <input type="number" name="price" value="50000" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Cost Price:</label>
-            <input type="number" name="cost_price" value="30000">
-        </div>
-        
-        <div class="form-group">
-            <label>Image (optional):</label>
-            <input type="file" name="image" accept="image/*">
-        </div>
-        
-        <div class="form-group">
-            <label>
-                <input type="checkbox" name="is_available" value="1" checked>
-                Available
-            </label>
-        </div>
-        
-        <button type="submit">🚀 Test Add Menu</button>
-    </form>
+    // Insert categories first
+    echo "Menambahkan kategori...\n";
     
-    <div id="response" class="response" style="display: none;"></div>
+    $categories = [
+        ['name' => 'Makanan Utama', 'description' => 'Menu makanan utama'],
+        ['name' => 'Minuman', 'description' => 'Menu minuman'],
+        ['name' => 'Snack', 'description' => 'Menu snack dan cemilan'],
+        ['name' => 'Dessert', 'description' => 'Menu penutup']
+    ];
     
-    <hr>
-    <h3>API Endpoint Test</h3>
-    <button onclick="testEndpoint()">Test api/menu.php Endpoint</button>
-    <div id="endpointResponse" class="response" style="display: none;"></div>
+    $stmt = $db->prepare("INSERT INTO categories (name, description) VALUES (?, ?)");
     
-    <script>
-        document.getElementById('debugForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const responseDiv = document.getElementById('response');
-            responseDiv.style.display = 'block';
-            responseDiv.innerHTML = '<p>⏳ Sending request...</p>';
-            
-            const formData = new FormData(e.target);
-            formData.append('action', 'add');
-            
-            console.log('Form Data:');
-            for (let [key, value] of formData.entries()) {
-                console.log(key, value);
-            }
-            
-            try {
-                const response = await fetch('api/menu.php', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
-                
-                const contentType = response.headers.get('content-type');
-                let data;
-                
-                if (contentType && contentType.includes('application/json')) {
-                    data = await response.json();
-                } else {
-                    const text = await response.text();
-                    console.log('Response text:', text);
-                    responseDiv.innerHTML = `
-                        <h3 class="error">❌ Server returned non-JSON response</h3>
-                        <p><strong>Status:</strong> ${response.status}</p>
-                        <p><strong>Content-Type:</strong> ${contentType}</p>
-                        <h4>Response:</h4>
-                        <pre>${text}</pre>
-                    `;
-                    return;
-                }
-                
-                console.log('Response data:', data);
-                
-                if (data.status === 'success') {
-                    responseDiv.innerHTML = `
-                        <h3 class="success">✅ Success!</h3>
-                        <p><strong>Message:</strong> ${data.message}</p>
-                        <p><strong>Menu ID:</strong> ${data.menu_id || 'N/A'}</p>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                } else {
-                    responseDiv.innerHTML = `
-                        <h3 class="error">❌ Error</h3>
-                        <p><strong>Message:</strong> ${data.message || 'Unknown error'}</p>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                }
-            } catch (error) {
-                console.error('Fetch error:', error);
-                responseDiv.innerHTML = `
-                    <h3 class="error">❌ Network Error</h3>
-                    <p>${error.message}</p>
-                `;
-            }
-        });
-        
-        async function testEndpoint() {
-            const div = document.getElementById('endpointResponse');
-            div.style.display = 'block';
-            div.innerHTML = '<p>⏳ Testing endpoint...</p>';
-            
-            try {
-                const response = await fetch('api/menu.php?action=list');
-                const text = await response.text();
-                
-                console.log('Endpoint test response:', text);
-                
-                let data;
-                try {
-                    data = JSON.parse(text);
-                    div.innerHTML = `
-                        <h3 class="success">✅ Endpoint is working</h3>
-                        <p><strong>Status:</strong> ${response.status}</p>
-                        <p><strong>Response:</strong></p>
-                        <pre>${JSON.stringify(data, null, 2)}</pre>
-                    `;
-                } catch (e) {
-                    div.innerHTML = `
-                        <h3 class="error">❌ Endpoint returned non-JSON</h3>
-                        <p><strong>Status:</strong> ${response.status}</p>
-                        <pre>${text}</pre>
-                    `;
-                }
-            } catch (error) {
-                div.innerHTML = `
-                    <h3 class="error">❌ Cannot reach endpoint</h3>
-                    <p>${error.message}</p>
-                `;
-            }
+    foreach ($categories as $cat) {
+        try {
+            $stmt->execute([$cat['name'], $cat['description']]);
+            echo "✓ Kategori '{$cat['name']}' ditambahkan\n";
+        } catch (PDOException $e) {
+            echo "✗ Kategori '{$cat['name']}' sudah ada\n";
         }
-    </script>
+    }
     
-    <hr>
-    <p style="color: red;"><strong>⚠️ Delete this file after debugging!</strong></p>
-    <pre>git rm debug-menu.php
-git commit -m "Remove debug file"
-git push</pre>
-</body>
-</html>
+    // Get category IDs
+    $stmt = $db->query("SELECT id, name FROM categories");
+    $catMap = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $catMap[$row['name']] = $row['id'];
+    }
+    
+    // Insert menu items
+    echo "\nMenambahkan menu...\n";
+    
+    $menuItems = [
+        // Makanan Utama
+        ['name' => 'Nasi Goreng Seafood', 'category' => 'Makanan Utama', 'price' => 35000, 'description' => 'Nasi goreng dengan seafood segar'],
+        ['name' => 'Mie Goreng Spesial', 'category' => 'Makanan Utama', 'price' => 30000, 'description' => 'Mie goreng dengan topping lengkap'],
+        ['name' => 'Soto Ayam', 'category' => 'Makanan Utama', 'price' => 25000, 'description' => 'Soto ayam dengan kuah gurih'],
+        ['name' => 'Ayam Penyet', 'category' => 'Makanan Utama', 'price' => 28000, 'description' => 'Ayam goreng dengan sambal terasi'],
+        ['name' => 'Nasi Uduk Komplit', 'category' => 'Makanan Utama', 'price' => 32000, 'description' => 'Nasi uduk dengan lauk lengkap'],
+        
+        // Minuman
+        ['name' => 'Es Teh Manis', 'category' => 'Minuman', 'price' => 5000, 'description' => 'Teh manis dingin segar'],
+        ['name' => 'Es Jeruk', 'category' => 'Minuman', 'price' => 8000, 'description' => 'Jeruk peras segar'],
+        ['name' => 'Jus Alpukat', 'category' => 'Minuman', 'price' => 15000, 'description' => 'Jus alpukat segar'],
+        ['name' => 'Kopi Susu', 'category' => 'Minuman', 'price' => 12000, 'description' => 'Kopi susu hangat'],
+        ['name' => 'Es Campur', 'category' => 'Minuman', 'price' => 18000, 'description' => 'Es campur dengan buah dan topping'],
+        
+        // Snack
+        ['name' => 'Pisang Goreng', 'category' => 'Snack', 'price' => 10000, 'description' => 'Pisang goreng crispy'],
+        ['name' => 'Tahu Crispy', 'category' => 'Snack', 'price' => 12000, 'description' => 'Tahu goreng renyah'],
+        ['name' => 'Kentang Goreng', 'category' => 'Snack', 'price' => 15000, 'description' => 'Kentang goreng dengan saus'],
+        
+        // Dessert
+        ['name' => 'Es Krim Vanilla', 'category' => 'Dessert', 'price' => 12000, 'description' => 'Es krim vanilla premium'],
+        ['name' => 'Puding Coklat', 'category' => 'Dessert', 'price' => 10000, 'description' => 'Puding coklat lembut']
+    ];
+    
+    $stmt = $db->prepare("
+        INSERT INTO menu_items (name, category_id, price, description, is_available) 
+        VALUES (?, ?, ?, ?, 1)
+    ");
+    
+    $success = 0;
+    $skipped = 0;
+    
+    foreach ($menuItems as $item) {
+        if (!isset($catMap[$item['category']])) {
+            echo "✗ Kategori '{$item['category']}' tidak ditemukan untuk '{$item['name']}'\n";
+            continue;
+        }
+        
+        try {
+            $stmt->execute([
+                $item['name'],
+                $catMap[$item['category']],
+                $item['price'],
+                $item['description']
+            ]);
+            echo "✓ Menu '{$item['name']}' ditambahkan (Rp " . number_format($item['price'], 0, ',', '.') . ")\n";
+            $success++;
+        } catch (PDOException $e) {
+            echo "✗ Menu '{$item['name']}' sudah ada\n";
+            $skipped++;
+        }
+    }
+    
+    echo "\n=================================\n";
+    echo "SELESAI!\n";
+    echo "✓ Berhasil: {$success} menu\n";
+    echo "✗ Dilewati: {$skipped} menu\n";
+    echo "=================================\n";
+    
+    // Show total menu
+    $stmt = $db->query("SELECT COUNT(*) as total FROM menu_items");
+    $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    echo "Total menu di database: {$total}\n";
+    
+} catch (Exception $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
+    exit(1);
+}
+?>
