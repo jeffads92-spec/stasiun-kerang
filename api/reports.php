@@ -85,53 +85,92 @@ try {
     switch ($action) {
         case 'summary':
             // Get sales summary
-            $startDate = $_GET['start_date'] ?? date('Y-m-01'); // First day of current month
-            $endDate = $_GET['end_date'] ?? date('Y-m-d'); // Today
+            $startDate = $_GET['start_date'] ?? date('Y-m-01');
+            $endDate = $_GET['end_date'] ?? date('Y-m-d');
             
-            // Total sales
-            $stmt = $db->prepare("
-                SELECT 
-                    COUNT(*) as total_orders,
-                    COALESCE(SUM(total), 0) as total_sales,
-                    COALESCE(SUM(subtotal), 0) as subtotal,
-                    COALESCE(SUM(tax), 0) as total_tax,
-                    COALESCE(SUM(service_charge), 0) as total_service
-                FROM orders
-                WHERE DATE(created_at) BETWEEN ? AND ?
-                AND status != 'Cancelled'
-            ");
-            $stmt->execute([$startDate, $endDate]);
-            $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Validate dates
+            if (!strtotime($startDate) || !strtotime($endDate)) {
+                sendJsonResponse([
+                    'success' => false,
+                    'message' => 'Invalid date format'
+                ], 400);
+            }
+            
+            // Total sales with error handling
+            try {
+                $stmt = $db->prepare("
+                    SELECT 
+                        COUNT(*) as total_orders,
+                        COALESCE(SUM(total), 0) as total_sales,
+                        COALESCE(SUM(subtotal), 0) as subtotal,
+                        COALESCE(SUM(tax), 0) as total_tax,
+                        COALESCE(SUM(service_charge), 0) as total_service
+                    FROM orders
+                    WHERE DATE(created_at) BETWEEN ? AND ?
+                    AND status != 'Cancelled'
+                ");
+                $stmt->execute([$startDate, $endDate]);
+                $summary = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if (!$summary) {
+                    $summary = [
+                        'total_orders' => 0,
+                        'total_sales' => 0,
+                        'subtotal' => 0,
+                        'total_tax' => 0,
+                        'total_service' => 0
+                    ];
+                }
+            } catch (PDOException $e) {
+                error_log("Summary query error: " . $e->getMessage());
+                $summary = [
+                    'total_orders' => 0,
+                    'total_sales' => 0,
+                    'subtotal' => 0,
+                    'total_tax' => 0,
+                    'total_service' => 0
+                ];
+            }
             
             // Top selling items
-            $stmt = $db->prepare("
-                SELECT 
-                    m.name,
-                    SUM(oi.quantity) as total_quantity,
-                    SUM(oi.subtotal) as total_revenue
-                FROM order_items oi
-                JOIN menu_items m ON oi.menu_item_id = m.id
-                JOIN orders o ON oi.order_id = o.id
-                WHERE DATE(o.created_at) BETWEEN ? AND ?
-                AND o.status != 'Cancelled'
-                GROUP BY m.id
-                ORDER BY total_quantity DESC
-                LIMIT 10
-            ");
-            $stmt->execute([$startDate, $endDate]);
-            $topItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            try {
+                $stmt = $db->prepare("
+                    SELECT 
+                        m.name,
+                        SUM(oi.quantity) as total_quantity,
+                        SUM(oi.subtotal) as total_revenue
+                    FROM order_items oi
+                    JOIN menu_items m ON oi.menu_item_id = m.id
+                    JOIN orders o ON oi.order_id = o.id
+                    WHERE DATE(o.created_at) BETWEEN ? AND ?
+                    AND o.status != 'Cancelled'
+                    GROUP BY m.id
+                    ORDER BY total_quantity DESC
+                    LIMIT 10
+                ");
+                $stmt->execute([$startDate, $endDate]);
+                $topItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                error_log("Top items query error: " . $e->getMessage());
+                $topItems = [];
+            }
             
             // Orders by status
-            $stmt = $db->prepare("
-                SELECT 
-                    status,
-                    COUNT(*) as count
-                FROM orders
-                WHERE DATE(created_at) BETWEEN ? AND ?
-                GROUP BY status
-            ");
-            $stmt->execute([$startDate, $endDate]);
-            $byStatus = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            try {
+                $stmt = $db->prepare("
+                    SELECT 
+                        status,
+                        COUNT(*) as count
+                    FROM orders
+                    WHERE DATE(created_at) BETWEEN ? AND ?
+                    GROUP BY status
+                ");
+                $stmt->execute([$startDate, $endDate]);
+                $byStatus = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                error_log("Status query error: " . $e->getMessage());
+                $byStatus = [];
+            }
             
             sendJsonResponse([
                 'success' => true,
