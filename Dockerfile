@@ -6,7 +6,7 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Copy startup script first
+# Copy startup script FIRST (before application files)
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
@@ -17,6 +17,8 @@ COPY . /var/www/html/
 RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html
 
+# Apache will listen on this port (Railway will inject PORT env var)
 EXPOSE 8080
 
+# Start using our custom script
 CMD ["/start.sh"]
