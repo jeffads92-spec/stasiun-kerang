@@ -1,467 +1,414 @@
 <?php
 /**
- * Menu Management API
- * CRUD operations for menu items and categories
+ * Menu API - Fixed version with proper includes
  */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-require_once '../config/database.php';
-require_once '../helpers/functions.php';
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// Authentication required
+// Start session
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    sendResponse(401, false, 'Unauthorized');
-    exit();
+
+// Error handling
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// Always return JSON
+header('Content-Type: application/json');
+
+// Handle errors gracefully
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'System error: ' . $errstr,
+        'debug' => [
+            'file' => basename($errfile),
+            'line' => $errline
+        ]
+    ]);
+    exit;
+});
+
+// Include dependencies
+require_once __DIR__ . '/../config/database.php';
+
+// Include helpers if exists
+if (file_exists(__DIR__ . '/../helpers/functions.php')) {
+    require_once __DIR__ . '/../helpers/functions.php';
 }
 
-// Only admin and kitchen can modify menu, but everyone can view
-$method = $_SERVER['REQUEST_METHOD'];
-$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-$resource = isset($_GET['resource']) ? $_GET['resource'] : 'menu';
-
+// Get database connection
 try {
     $pdo = getDbConnection();
-    
-    if ($resource === 'categories') {
-        handleCategories($pdo, $method, $id);
-    } else {
-        handleMenuItems($pdo, $method, $id);
-    }
-    
 } catch (Exception $e) {
-    sendResponse(500, false, 'Server error: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Database connection failed'
+    ]);
+    exit;
 }
 
-function handleMenuItems($pdo, $method, $id) {
-    // Check permissions for modifying
-    if ($method !== 'GET' && $_SESSION['role'] !== 'admin' && $_SESSION['role'] !== 'kitchen') {
-        sendResponse(403, false, 'Forbidden: Only admin and kitchen can modify menu');
-        exit();
-    }
-    
-    switch ($method) {
-        case 'GET':
-            if ($id > 0) {
-                getMenuItem($pdo, $id);
-            } else {
-                getAllMenuItems($pdo);
-            }
-            break;
-            
-        case 'POST':
-            createMenuItem($pdo);
-            break;
-            
-        case 'PUT':
-            updateMenuItem($pdo, $id);
-            break;
-            
-        case 'DELETE':
-            deleteMenuItem($pdo, $id);
-            break;
-            
-        default:
-            sendResponse(405, false, 'Method not allowed');
-    }
+// Get action
+$action = $_GET['action'] ?? $_POST['action'] ?? 'list';
+
+// Handle different actions
+switch ($action) {
+    case 'list':
+        handleList($pdo);
+        break;
+    case 'add':
+        handleAdd($pdo);
+        break;
+    case 'update':
+        handleUpdate($pdo);
+        break;
+    case 'delete':
+        handleDelete($pdo);
+        break;
+    case 'get':
+        handleGet($pdo);
+        break;
+    default:
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Invalid action'
+        ]);
+        exit;
 }
 
-function getAllMenuItems($pdo) {
-    $category = isset($_GET['category']) ? intval($_GET['category']) : 0;
-    $search = isset($_GET['search']) ? $_GET['search'] : '';
-    $available = isset($_GET['available']) ? $_GET['available'] : '';
-    
+/**
+ * List all menu items
+ */
+function handleList($pdo) {
     try {
         $sql = "SELECT m.*, c.name as category_name 
                 FROM menu_items m 
                 LEFT JOIN categories c ON m.category_id = c.id 
-                WHERE 1=1";
-        $params = [];
+                ORDER BY m.id DESC";
         
-        if ($category > 0) {
-            $sql .= " AND m.category_id = ?";
-            $params[] = $category;
-        }
+        $stmt = $pdo->query($sql);
+        $menuItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        if (!empty($search)) {
-            $sql .= " AND (m.name LIKE ? OR m.description LIKE ?)";
-            $searchTerm = "%{$search}%";
-            $params[] = $searchTerm;
-            $params[] = $searchTerm;
-        }
-        
-        if ($available === 'true') {
-            $sql .= " AND m.is_available = 1";
-        } elseif ($available === 'false') {
-            $sql .= " AND m.is_available = 0";
-        }
-        
-        $sql .= " ORDER BY c.sort_order, m.name";
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Menu items retrieved', ['items' => $items]);
-        
-    } catch (PDOException $e) {
-        error_log("Get all menu items error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getMenuItem($pdo, $id) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT m.*, c.name as category_name 
-            FROM menu_items m 
-            LEFT JOIN categories c ON m.category_id = c.id 
-            WHERE m.id = ?
-        ");
-        $stmt->execute([$id]);
-        $item = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($item) {
-            sendResponse(200, true, 'Menu item retrieved', ['item' => $item]);
-        } else {
-            sendResponse(404, false, 'Menu item not found');
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Get menu item error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function createMenuItem($pdo) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    $required = ['category_id', 'name', 'price'];
-    foreach ($required as $field) {
-        if (!isset($data[$field]) || empty(trim($data[$field]))) {
-            sendResponse(400, false, "Field {$field} is required");
-            return;
-        }
-    }
-    
-    // Validate price
-    if (!is_numeric($data['price']) || $data['price'] <= 0) {
-        sendResponse(400, false, 'Price must be a positive number');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO menu_items (category_id, name, description, price, cost_price, 
-                                   image, is_available, is_featured, preparation_time, 
-                                   stock_quantity, calories, spicy_level, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        ");
-        
-        $stmt->execute([
-            intval($data['category_id']),
-            trim($data['name']),
-            isset($data['description']) ? trim($data['description']) : null,
-            floatval($data['price']),
-            isset($data['cost_price']) ? floatval($data['cost_price']) : null,
-            $data['image'] ?? null,
-            isset($data['is_available']) ? intval($data['is_available']) : 1,
-            isset($data['is_featured']) ? intval($data['is_featured']) : 0,
-            isset($data['preparation_time']) ? intval($data['preparation_time']) : 15,
-            isset($data['stock_quantity']) ? intval($data['stock_quantity']) : null,
-            isset($data['calories']) ? intval($data['calories']) : null,
-            $data['spicy_level'] ?? 'none'
+        echo json_encode([
+            'status' => 'success',
+            'data' => $menuItems
         ]);
-        
-        $itemId = $pdo->lastInsertId();
-        
-        sendResponse(201, true, 'Menu item created successfully', ['item_id' => $itemId]);
-        
     } catch (PDOException $e) {
-        error_log("Create menu item error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to fetch menu items: ' . $e->getMessage()
+        ]);
     }
 }
 
-function updateMenuItem($pdo, $id) {
-    if ($id <= 0) {
-        sendResponse(400, false, 'Invalid menu item ID');
+/**
+ * Get single menu item
+ */
+function handleGet($pdo) {
+    $id = $_GET['id'] ?? null;
+    
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Menu ID is required'
+        ]);
         return;
     }
     
-    $data = json_decode(file_get_contents('php://input'), true);
-    
     try {
-        // Check if item exists
-        $stmt = $pdo->prepare("SELECT id FROM menu_items WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT m.*, c.name as category_name 
+                              FROM menu_items m 
+                              LEFT JOIN categories c ON m.category_id = c.id 
+                              WHERE m.id = ?");
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) {
-            sendResponse(404, false, 'Menu item not found');
-            return;
+        $menu = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($menu) {
+            echo json_encode([
+                'status' => 'success',
+                'data' => $menu
+            ]);
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Menu not found'
+            ]);
         }
-        
-        $updateFields = [];
-        $params = [];
-        
-        $allowedFields = ['category_id', 'name', 'description', 'price', 'cost_price', 
-                         'image', 'is_available', 'is_featured', 'preparation_time', 
-                         'stock_quantity', 'calories', 'spicy_level'];
-        
-        foreach ($allowedFields as $field) {
-            if (isset($data[$field])) {
-                $updateFields[] = "{$field} = ?";
-                // Handle different data types
-                if (in_array($field, ['category_id', 'is_available', 'is_featured', 'preparation_time', 'stock_quantity', 'calories'])) {
-                    $params[] = intval($data[$field]);
-                } elseif (in_array($field, ['price', 'cost_price'])) {
-                    $params[] = floatval($data[$field]);
-                } else {
-                    $params[] = $data[$field];
-                }
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to fetch menu: ' . $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Add new menu item
+ */
+function handleAdd($pdo) {
+    try {
+        // Validate required fields
+        $required = ['category_id', 'name', 'price'];
+        foreach ($required as $field) {
+            if (empty($_POST[$field])) {
+                http_response_code(400);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => "Field '$field' is required"
+                ]);
+                return;
             }
         }
         
-        if (empty($updateFields)) {
-            sendResponse(400, false, 'No fields to update');
-            return;
+        // Get form data
+        $category_id = $_POST['category_id'];
+        $name = trim($_POST['name']);
+        $description = trim($_POST['description'] ?? '');
+        $price = floatval($_POST['price']);
+        $cost_price = !empty($_POST['cost_price']) ? floatval($_POST['cost_price']) : null;
+        $preparation_time = !empty($_POST['preparation_time']) ? intval($_POST['preparation_time']) : 15;
+        $is_available = isset($_POST['is_available']) ? 1 : 0;
+        $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+        $spicy_level = $_POST['spicy_level'] ?? 'none';
+        $calories = !empty($_POST['calories']) ? intval($_POST['calories']) : null;
+        
+        // Handle image upload
+        $imagePath = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadResult = uploadImageLocal($_FILES['image']);
+            if ($uploadResult['success']) {
+                $imagePath = $uploadResult['filename'];
+            } else {
+                http_response_code(400);
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => $uploadResult['message']
+                ]);
+                return;
+            }
         }
         
-        $sql = "UPDATE menu_items SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE id = ?";
-        $params[] = $id;
+        // Insert into database
+        $sql = "INSERT INTO menu_items 
+                (category_id, name, description, price, cost_price, image, 
+                 is_available, is_featured, preparation_time, calories, spicy_level) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute([
+            $category_id, $name, $description, $price, $cost_price, $imagePath,
+            $is_available, $is_featured, $preparation_time, $calories, $spicy_level
+        ]);
         
-        if ($stmt->rowCount() > 0) {
-            sendResponse(200, true, 'Menu item updated successfully');
-        } else {
-            sendResponse(404, false, 'Menu item not found');
-        }
+        $menuId = $pdo->lastInsertId();
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Menu berhasil ditambahkan',
+            'menu_id' => $menuId
+        ]);
         
     } catch (PDOException $e) {
-        error_log("Update menu item error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Gagal menyimpan menu: ' . $e->getMessage()
+        ]);
     }
 }
 
-function deleteMenuItem($pdo, $id) {
-    if ($id <= 0) {
-        sendResponse(400, false, 'Invalid menu item ID');
-        return;
-    }
-    
+/**
+ * Update menu item
+ */
+function handleUpdate($pdo) {
     try {
-        // Check if item is used in orders
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM order_items WHERE menu_item_id = ?");
-        $stmt->execute([$id]);
-        $count = $stmt->fetch()['count'];
+        $id = $_POST['id'] ?? null;
         
-        if ($count > 0) {
-            sendResponse(400, false, 'Cannot delete menu item that has been ordered');
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Menu ID is required'
+            ]);
             return;
         }
         
+        // Get existing menu
+        $stmt = $pdo->prepare("SELECT * FROM menu_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$existing) {
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Menu not found'
+            ]);
+            return;
+        }
+        
+        // Get form data
+        $category_id = $_POST['category_id'] ?? $existing['category_id'];
+        $name = trim($_POST['name'] ?? $existing['name']);
+        $description = trim($_POST['description'] ?? $existing['description']);
+        $price = floatval($_POST['price'] ?? $existing['price']);
+        $cost_price = isset($_POST['cost_price']) ? floatval($_POST['cost_price']) : $existing['cost_price'];
+        $preparation_time = isset($_POST['preparation_time']) ? intval($_POST['preparation_time']) : $existing['preparation_time'];
+        $is_available = isset($_POST['is_available']) ? 1 : 0;
+        $is_featured = isset($_POST['is_featured']) ? 1 : 0;
+        $spicy_level = $_POST['spicy_level'] ?? $existing['spicy_level'];
+        $calories = isset($_POST['calories']) ? intval($_POST['calories']) : $existing['calories'];
+        
+        // Handle image upload
+        $imagePath = $existing['image'];
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            $uploadResult = uploadImageLocal($_FILES['image']);
+            if ($uploadResult['success']) {
+                // Delete old image if exists
+                if ($existing['image']) {
+                    $oldImagePath = __DIR__ . '/../uploads/' . $existing['image'];
+                    if (file_exists($oldImagePath)) {
+                        unlink($oldImagePath);
+                    }
+                }
+                $imagePath = $uploadResult['filename'];
+            }
+        }
+        
+        // Update database
+        $sql = "UPDATE menu_items SET 
+                category_id = ?, name = ?, description = ?, price = ?, 
+                cost_price = ?, image = ?, is_available = ?, is_featured = ?,
+                preparation_time = ?, calories = ?, spicy_level = ?
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            $category_id, $name, $description, $price, $cost_price, $imagePath,
+            $is_available, $is_featured, $preparation_time, $calories, $spicy_level, $id
+        ]);
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Menu berhasil diupdate'
+        ]);
+        
+    } catch (PDOException $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Gagal update menu: ' . $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Delete menu item
+ */
+function handleDelete($pdo) {
+    try {
+        $id = $_POST['id'] ?? $_GET['id'] ?? null;
+        
+        if (!$id) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Menu ID is required'
+            ]);
+            return;
+        }
+        
+        // Get menu to delete image
+        $stmt = $pdo->prepare("SELECT image FROM menu_items WHERE id = ?");
+        $stmt->execute([$id]);
+        $menu = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$menu) {
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Menu not found'
+            ]);
+            return;
+        }
+        
+        // Delete image if exists
+        if ($menu['image']) {
+            $imagePath = __DIR__ . '/../uploads/' . $menu['image'];
+            if (file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+        }
+        
+        // Delete from database
         $stmt = $pdo->prepare("DELETE FROM menu_items WHERE id = ?");
         $stmt->execute([$id]);
         
-        if ($stmt->rowCount() > 0) {
-            sendResponse(200, true, 'Menu item deleted successfully');
-        } else {
-            sendResponse(404, false, 'Menu item not found');
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Delete menu item error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function handleCategories($pdo, $method, $id) {
-    // Check permissions for modifying
-    if ($method !== 'GET' && $_SESSION['role'] !== 'admin') {
-        sendResponse(403, false, 'Forbidden: Only admin can modify categories');
-        exit();
-    }
-    
-    switch ($method) {
-        case 'GET':
-            if ($id > 0) {
-                getCategory($pdo, $id);
-            } else {
-                getAllCategories($pdo);
-            }
-            break;
-            
-        case 'POST':
-            createCategory($pdo);
-            break;
-            
-        case 'PUT':
-            updateCategory($pdo, $id);
-            break;
-            
-        case 'DELETE':
-            deleteCategory($pdo, $id);
-            break;
-            
-        default:
-            sendResponse(405, false, 'Method not allowed');
-    }
-}
-
-function getAllCategories($pdo) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT c.*, COUNT(m.id) as item_count 
-            FROM categories c 
-            LEFT JOIN menu_items m ON c.id = m.category_id AND m.is_available = 1
-            WHERE c.is_active = 1 
-            GROUP BY c.id 
-            ORDER BY c.sort_order, c.name
-        ");
-        $stmt->execute();
-        $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        sendResponse(200, true, 'Categories retrieved', ['categories' => $categories]);
-        
-    } catch (PDOException $e) {
-        error_log("Get all categories error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function getCategory($pdo, $id) {
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM categories WHERE id = ?");
-        $stmt->execute([$id]);
-        $category = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($category) {
-            sendResponse(200, true, 'Category retrieved', ['category' => $category]);
-        } else {
-            sendResponse(404, false, 'Category not found');
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Get category error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function createCategory($pdo) {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if (!isset($data['name']) || empty(trim($data['name']))) {
-        sendResponse(400, false, 'Category name is required');
-        return;
-    }
-    
-    try {
-        $stmt = $pdo->prepare("
-            INSERT INTO categories (name, description, icon, sort_order, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, NOW())
-        ");
-        
-        $stmt->execute([
-            trim($data['name']),
-            isset($data['description']) ? trim($data['description']) : null,
-            $data['icon'] ?? null,
-            isset($data['sort_order']) ? intval($data['sort_order']) : 0,
-            isset($data['is_active']) ? intval($data['is_active']) : 1
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Menu berhasil dihapus'
         ]);
         
-        sendResponse(201, true, 'Category created', ['category_id' => $pdo->lastInsertId()]);
-        
     } catch (PDOException $e) {
-        error_log("Create category error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Gagal hapus menu: ' . $e->getMessage()
+        ]);
     }
 }
 
-function updateCategory($pdo, $id) {
-    if ($id <= 0) {
-        sendResponse(400, false, 'Invalid category ID');
-        return;
+/**
+ * Local upload image function (avoids duplicate with helpers)
+ */
+function uploadImageLocal($file) {
+    $uploadDir = __DIR__ . '/../uploads/';
+    
+    // Create directory if not exists
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
     }
     
-    $data = json_decode(file_get_contents('php://input'), true);
+    $allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    $maxSize = 5 * 1024 * 1024; // 5MB
     
-    try {
-        $updateFields = [];
-        $params = [];
-        
-        foreach (['name', 'description', 'icon', 'sort_order', 'is_active'] as $field) {
-            if (isset($data[$field])) {
-                $updateFields[] = "{$field} = ?";
-                if (in_array($field, ['sort_order', 'is_active'])) {
-                    $params[] = intval($data[$field]);
-                } else {
-                    $params[] = trim($data[$field]);
-                }
-            }
-        }
-        
-        if (empty($updateFields)) {
-            sendResponse(400, false, 'No fields to update');
-            return;
-        }
-        
-        $sql = "UPDATE categories SET " . implode(', ', $updateFields) . ", updated_at = NOW() WHERE id = ?";
-        $params[] = $id;
-        
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-        
-        if ($stmt->rowCount() > 0) {
-            sendResponse(200, true, 'Category updated');
-        } else {
-            sendResponse(404, false, 'Category not found');
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Update category error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
-    }
-}
-
-function deleteCategory($pdo, $id) {
-    if ($id <= 0) {
-        sendResponse(400, false, 'Invalid category ID');
-        return;
+    // Validate file type
+    if (!in_array($file['type'], $allowedTypes)) {
+        return [
+            'success' => false,
+            'message' => 'Invalid file type. Only JPG, PNG, GIF, and WEBP allowed'
+        ];
     }
     
-    try {
-        // Check if category has menu items
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM menu_items WHERE category_id = ?");
-        $stmt->execute([$id]);
-        $count = $stmt->fetch()['count'];
-        
-        if ($count > 0) {
-            sendResponse(400, false, 'Cannot delete category that has menu items');
-            return;
-        }
-        
-        $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
-        $stmt->execute([$id]);
-        
-        if ($stmt->rowCount() > 0) {
-            sendResponse(200, true, 'Category deleted');
-        } else {
-            sendResponse(404, false, 'Category not found');
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Delete category error: " . $e->getMessage());
-        sendResponse(500, false, 'Database error');
+    // Validate file size
+    if ($file['size'] > $maxSize) {
+        return [
+            'success' => false,
+            'message' => 'File too large. Maximum size is 5MB'
+        ];
+    }
+    
+    // Generate unique filename
+    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $filename = 'menu_' . uniqid() . '.' . $extension;
+    $targetPath = $uploadDir . $filename;
+    
+    // Move uploaded file
+    if (move_uploaded_file($file['tmp_name'], $targetPath)) {
+        return [
+            'success' => true,
+            'filename' => $filename
+        ];
+    } else {
+        return [
+            'success' => false,
+            'message' => 'Failed to upload file'
+        ];
     }
 }
 ?>
