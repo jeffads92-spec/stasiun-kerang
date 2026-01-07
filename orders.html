@@ -1,400 +1,952 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orders - Stasiun Kerang</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>Manajemen Orders - Stasiun Kerang</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; }
-        .sidebar { width: 260px; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); height: 100vh; position: fixed; left: 0; top: 0; overflow-y: auto; box-shadow: 4px 0 10px rgba(0,0,0,0.1); }
-        .sidebar-header { padding: 25px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sidebar-header h2 { color: white; font-size: 24px; margin-top: 10px; }
-        .logo-icon { font-size: 48px; margin-bottom: 10px; }
-        .sidebar-menu { padding: 20px 0; }
-        .menu-item { display: flex; align-items: center; padding: 15px 25px; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s ease; }
-        .menu-item:hover { background: rgba(255,255,255,0.1); color: white; padding-left: 30px; }
-        .menu-item.active { background: rgba(255,255,255,0.15); border-left: 4px solid #4CAF50; color: white; }
-        .menu-item i { font-size: 18px; width: 30px; }
-        .main-content { margin-left: 260px; width: calc(100% - 260px); min-height: 100vh; }
-        .topbar { background: white; padding: 20px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .topbar h1 { font-size: 28px; color: #333; }
-        .content { padding: 30px; }
-        .action-bar { display: flex; justify-content: space-between; margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
-        .btn { padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
-        .filter-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        .filter-btn { padding: 10px 20px; border: 2px solid #e0e0e0; background: white; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; }
-        .filter-btn.active { border-color: #667eea; background: #667eea; color: white; }
-        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
-        .order-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); transition: all 0.3s ease; }
-        .order-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
-        .order-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
-        .order-number { font-size: 18px; font-weight: bold; color: #333; }
-        .order-time { font-size: 12px; color: #999; }
-        .badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .badge-pending { background: #fff3cd; color: #856404; }
-        .badge-preparing { background: #cfe2ff; color: #084298; }
-        .badge-ready { background: #d1e7dd; color: #0f5132; }
-        .badge-completed { background: #d3d3d3; color: #383838; }
-        .badge-cancelled { background: #f8d7da; color: #721c24; }
-        .order-info { margin: 15px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; }
-        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .order-items { margin: 15px 0; }
-        .order-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-        .order-total { margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; }
-        .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; }
-        .order-actions { display: flex; gap: 10px; margin-top: 15px; }
-        .btn-sm { padding: 8px 16px; font-size: 13px; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-info { background: #17a2b8; color: white; }
-        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); overflow-y: auto; }
-        .modal-content { background: white; margin: 5% auto; padding: 30px; width: 90%; max-width: 600px; border-radius: 15px; }
-        .modal-header { display: flex; justify-content: space-between; margin-bottom: 25px; }
-        .modal-header h2 { font-size: 24px; color: #333; }
-        .close { font-size: 30px; color: #999; cursor: pointer; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 600; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
-        .menu-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 20px 0; }
-        .menu-item-card { padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.3s ease; }
-        .menu-item-card:hover { border-color: #667eea; transform: translateY(-2px); }
-        .menu-item-card.selected { border-color: #667eea; background: #f0f4ff; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo i {
+            font-size: 48px;
+            color: #e67e22;
+        }
+
+        .logo h2 {
+            margin-top: 10px;
+            font-size: 20px;
+        }
+
+        .menu {
+            list-style: none;
+        }
+
+        .menu li {
+            margin-bottom: 10px;
+        }
+
+        .menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .menu a:hover, .menu a.active {
+            background: #34495e;
+        }
+
+        .menu a i {
+            margin-right: 10px;
+            width: 20px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #2c3e50;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-item label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .status-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .status-tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .status-tab.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .order-number {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-preparing {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .status-ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .order-info {
+            margin-bottom: 10px;
+        }
+
+        .order-info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .order-info-label {
+            color: #7f8c8d;
+        }
+
+        .order-info-value {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .order-total {
+            font-size: 18px;
+            font-weight: bold;
+            color: #27ae60;
+            margin: 10px 0;
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .order-actions .btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+        }
+
+        .close-modal {
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .menu-selection {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .menu-item-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: end;
+        }
+
+        .menu-item-row select {
+            flex: 2;
+        }
+
+        .menu-item-row input {
+            flex: 1;
+        }
+
+        .selected-items {
+            margin-top: 15px;
+        }
+
+        .selected-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .selected-item-info {
+            flex: 1;
+        }
+
+        .selected-item-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .selected-item-price {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .selected-item-remove {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .order-summary {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .summary-total {
+            font-weight: bold;
+            font-size: 18px;
+            color: #27ae60;
+            border-top: 2px solid #ddd;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            color: #bdc3c7;
+            margin-bottom: 20px;
+        }
+
+        .empty-state p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
+    <!-- Sidebar -->
     <div class="sidebar">
-        <div class="sidebar-header">
-            <div class="logo-icon">🦐</div>
+        <div class="logo">
+            <i class="fas fa-shrimp"></i>
             <h2>Stasiun Kerang</h2>
         </div>
-        <nav class="sidebar-menu">
-            <a href="dashboard.html" class="menu-item"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
-            <a href="orders.html" class="menu-item active"><i class="fas fa-shopping-cart"></i><span>Orders</span></a>
-            <a href="menu-management.html" class="menu-item"><i class="fas fa-utensils"></i><span>Menu</span></a>
-            <a href="kitchen.html" class="menu-item"><i class="fas fa-fire"></i><span>Kitchen</span></a>
-            <a href="reports.html" class="menu-item"><i class="fas fa-chart-line"></i><span>Laporan</span></a>
-            <a href="settings.html" class="menu-item"><i class="fas fa-cog"></i><span>Pengaturan</span></a>
-            <a href="#" class="menu-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i><span>Logout</span></a>
-        </nav>
+        <ul class="menu">
+            <li><a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="orders.html" class="active"><i class="fas fa-shopping-cart"></i> Orders</a></li>
+            <li><a href="menu-management.html"><i class="fas fa-utensils"></i> Menu</a></li>
+            <li><a href="kitchen.html"><i class="fas fa-fire"></i> Kitchen</a></li>
+            <li><a href="reports.html"><i class="fas fa-chart-bar"></i> Laporan</a></li>
+            <li><a href="settings.html"><i class="fas fa-cog"></i> Pengaturan</a></li>
+            <li><a href="index.html"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
     </div>
 
+    <!-- Main Content -->
     <div class="main-content">
-        <div class="topbar"><h1>Manajemen Orders</h1></div>
-        <div class="content">
-            <div class="action-bar">
-                <button class="btn btn-primary" onclick="openNewOrderModal()"><i class="fas fa-plus"></i> Order Baru</button>
-                <div class="filter-group">
-                    <button class="filter-btn active" onclick="filterOrders('all')">Semua</button>
-                    <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
-                    <button class="filter-btn" onclick="filterOrders('preparing')">Preparing</button>
-                    <button class="filter-btn" onclick="filterOrders('ready')">Ready</button>
-                    <button class="filter-btn" onclick="filterOrders('completed')">Completed</button>
+        <!-- Header -->
+        <div class="header">
+            <h1>Manajemen Orders</h1>
+            <button class="btn btn-primary" onclick="openNewOrderModal()">
+                <i class="fas fa-plus"></i> Order Baru
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="filter-group">
+                <div class="filter-item">
+                    <label>Tipe Order</label>
+                    <select id="filterOrderType" onchange="loadOrders()">
+                        <option value="">Semua</option>
+                        <option value="Dine In">Dine In</option>
+                        <option value="Takeaway">Takeaway</option>
+                        <option value="Delivery">Delivery</option>
+                    </select>
+                </div>
+                <div class="filter-item">
+                    <label>Tanggal</label>
+                    <input type="date" id="filterDate" onchange="loadOrders()">
+                </div>
+                <div class="filter-item">
+                    <label>Pencarian</label>
+                    <input type="text" id="filterSearch" placeholder="Cari order number..." onkeyup="searchOrders()">
                 </div>
             </div>
-            <div class="orders-grid" id="ordersGrid"></div>
+        </div>
+
+        <!-- Status Tabs -->
+        <div class="status-tabs">
+            <div class="status-tab active" data-status="" onclick="filterByStatus('')">
+                Semua
+            </div>
+            <div class="status-tab" data-status="Pending" onclick="filterByStatus('Pending')">
+                Pending
+            </div>
+            <div class="status-tab" data-status="Preparing" onclick="filterByStatus('Preparing')">
+                Preparing
+            </div>
+            <div class="status-tab" data-status="Ready" onclick="filterByStatus('Ready')">
+                Ready
+            </div>
+            <div class="status-tab" data-status="Completed" onclick="filterByStatus('Completed')">
+                Completed
+            </div>
+        </div>
+
+        <!-- Orders Grid -->
+        <div id="ordersContainer">
+            <div class="loading">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+                <p>Memuat orders...</p>
+            </div>
         </div>
     </div>
 
+    <!-- New Order Modal -->
     <div id="newOrderModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Order Baru</h2>
-                <span class="close" onclick="closeNewOrderModal()">&times;</span>
+                <span class="close-modal" onclick="closeNewOrderModal()">&times;</span>
             </div>
             <form id="newOrderForm">
                 <div class="form-group">
                     <label>Nomor Meja</label>
-                    <input type="text" id="tableNumber" placeholder="T01" required>
+                    <input type="text" id="tableNumber" placeholder="Contoh: T01">
                 </div>
                 <div class="form-group">
                     <label>Nama Pelanggan</label>
                     <input type="text" id="customerName" placeholder="Nama pelanggan">
                 </div>
                 <div class="form-group">
+                    <label>Nomor Telepon</label>
+                    <input type="tel" id="customerPhone" placeholder="08xxx">
+                </div>
+                <div class="form-group">
                     <label>Tipe Order</label>
                     <select id="orderType" required>
-                        <option value="dine_in">Dine In</option>
-                        <option value="takeaway">Takeaway</option>
-                        <option value="delivery">Delivery</option>
+                        <option value="Dine In">Dine In</option>
+                        <option value="Takeaway">Takeaway</option>
+                        <option value="Delivery">Delivery</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Pilih Menu</label>
-                    <div class="menu-selector" id="menuSelector"></div>
+                    <div class="menu-selection">
+                        <div class="menu-item-row">
+                            <select id="menuSelect">
+                                <option value="">-- Pilih Menu --</option>
+                            </select>
+                            <input type="number" id="menuQuantity" min="1" value="1" placeholder="Qty">
+                            <button type="button" class="btn btn-success" onclick="addMenuItem()">
+                                <i class="fas fa-plus"></i> Tambah
+                            </button>
+                        </div>
+                        <div id="selectedItems" class="selected-items"></div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Catatan</label>
-                    <textarea id="orderNotes" rows="3" placeholder="Catatan..."></textarea>
+                    <textarea id="orderNotes" placeholder="Catatan tambahan..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fas fa-check"></i> Buat Order</button>
+                <div class="order-summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="summarySubtotal">Rp 0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Pajak (10%):</span>
+                        <span id="summaryTax">Rp 0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Biaya Layanan (5%):</span>
+                        <span id="summaryService">Rp 0</span>
+                    </div>
+                    <div class="summary-row summary-total">
+                        <span>Total:</span>
+                        <span id="summaryTotal">Rp 0</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
+                    <i class="fas fa-check"></i> Buat Order
+                </button>
             </form>
         </div>
     </div>
 
     <script>
-        const user = JSON.parse(localStorage.getItem('user'));
-        if (!user) window.location.href = 'index.html';
-        const API_BASE = '/api';
-        let orders = [], menuItems = [], selectedItems = [], currentFilter = 'all';
+        let allOrders = [];
+        let selectedMenuItems = [];
+        let currentStatusFilter = '';
+        let menuItems = [];
 
-        async function fetchOrders(status = null) {
+        // Load menu items for dropdown
+        async function loadMenuItems() {
             try {
-                let url = `${API_BASE}/orders.php`;
-                if (status && status !== 'all') url += `?status=${status}`;
-                const response = await fetch(url);
-                const result = await response.json();
-                if (result.success) {
-                    orders = result.data.orders || [];
-                    renderOrders(currentFilter);
+                const response = await fetch('/api/menu.php');
+                const data = await response.json();
+                
+                if (data.success) {
+                    menuItems = data.data;
+                    const menuSelect = document.getElementById('menuSelect');
+                    menuSelect.innerHTML = '<option value="">-- Pilih Menu --</option>';
+                    
+                    menuItems.forEach(item => {
+                        if (item.is_available == 1) {
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = `${item.name} - Rp ${formatNumber(item.price)}`;
+                            option.dataset.price = item.price;
+                            option.dataset.name = item.name;
+                            menuSelect.appendChild(option);
+                        }
+                    });
+                    
+                    console.log('✓ Menu items loaded:', menuItems.length);
+                } else {
+                    console.error('Failed to load menu items:', data.message);
                 }
-            } catch (error) { console.error('Error:', error); }
+            } catch (error) {
+                console.error('Error loading menu items:', error);
+            }
         }
 
-        async function fetchMenuItems() {
+        // Load orders
+        async function loadOrders() {
             try {
-                const response = await fetch(`${API_BASE}/menu.php?available=true`);
-                const result = await response.json();
-                if (result.success) menuItems = result.data.items || [];
-            } catch (error) { console.error('Error:', error); }
+                let url = '/api/orders.php?';
+                
+                const orderType = document.getElementById('filterOrderType').value;
+                const date = document.getElementById('filterDate').value;
+                
+                if (currentStatusFilter) {
+                    url += `status=${currentStatusFilter}&`;
+                }
+                if (orderType) {
+                    url += `order_type=${orderType}&`;
+                }
+                if (date) {
+                    url += `date=${date}&`;
+                }
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allOrders = data.data;
+                    displayOrders(allOrders);
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('ordersContainer').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <p>Gagal memuat orders: ${error.message}</p>
+                    </div>
+                `;
+            }
         }
 
-        function renderOrders(filter = 'all') {
-            const grid = document.getElementById('ordersGrid');
-            const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
-            if (filtered.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: #999;">Tidak ada order</div>';
+        // Display orders
+        function displayOrders(orders) {
+            const container = document.getElementById('ordersContainer');
+            
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-shopping-cart"></i>
+                        <p>Belum ada order</p>
+                    </div>
+                `;
                 return;
             }
-            grid.innerHTML = filtered.map(o => `
-                <div class="order-card">
-                    <div class="order-header">
-                        <div>
-                            <div class="order-number">${o.order_number}</div>
-                            <div class="order-time"><i class="far fa-clock"></i> ${formatTime(o.created_at)}</div>
-                        </div>
-                        <span class="badge badge-${o.status}">${o.status}</span>
-                    </div>
-                    <div class="order-info">
-                        <div class="info-row"><span>Meja:</span><strong>${o.table_number || '-'}</strong></div>
-                        <div class="info-row"><span>Pelanggan:</span><strong>${o.customer_name || 'Guest'}</strong></div>
-                        <div class="info-row"><span>Tipe:</span><strong>${o.order_type || 'dine_in'}</strong></div>
-                    </div>
-                    <div class="order-items">
-                        ${(o.items || []).map(item => `
-                            <div class="order-item">
-                                <span>${item.quantity}x ${item.menu_name || item.name}</span>
-                                <span><strong>${formatCurrency(item.price * item.quantity)}</strong></span>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="order-total">
-                        <div class="total-row"><span>Total:</span><span>${formatCurrency(o.total)}</span></div>
-                    </div>
-                    <div class="order-actions">
-                        ${o.status === 'pending' ? `<button class="btn btn-sm btn-info" onclick="updateOrderStatus(${o.id}, 'preparing')"><i class="fas fa-fire"></i> Mulai</button>` : ''}
-                        ${o.status === 'preparing' ? `<button class="btn btn-sm btn-success" onclick="updateOrderStatus(${o.id}, 'ready')"><i class="fas fa-check"></i> Siap</button>` : ''}
-                        ${o.status === 'ready' ? `<button class="btn btn-sm btn-success" onclick="updateOrderStatus(${o.id}, 'completed')"><i class="fas fa-check-double"></i> Selesai</button>` : ''}
-                        ${o.status !== 'cancelled' && o.status !== 'completed' ? `<button class="btn btn-sm btn-danger" onclick="cancelOrder(${o.id})"><i class="fas fa-times"></i> Batal</button>` : ''}
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function filterOrders(status) {
-            currentFilter = status;
-            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            renderOrders(status);
-        }
-
-        function openNewOrderModal() {
-            document.getElementById('newOrderModal').style.display = 'block';
-            if (menuItems.length === 0) fetchMenuItems().then(() => renderMenuSelector());
-            else renderMenuSelector();
-        }
-
-        function closeNewOrderModal() {
-            document.getElementById('newOrderModal').style.display = 'none';
-            document.getElementById('newOrderForm').reset();
-            selectedItems = [];
-        }
-
-        function renderMenuSelector() {
-            const selector = document.getElementById('menuSelector');
-            selector.innerHTML = menuItems.map(item => `
-                <div class="menu-item-card" data-id="${item.id}" onclick="toggleMenuItem(${item.id})">
-                    <div style="font-weight: 600; margin-bottom: 8px;">${item.name}</div>
-                    <div style="color: #667eea; font-weight: bold;">${formatCurrency(item.price)}</div>
-                </div>
-            `).join('');
-        }
-
-        function toggleMenuItem(itemId) {
-            const card = event.currentTarget;
-            const item = menuItems.find(m => m.id === itemId);
-            const index = selectedItems.findIndex(s => s.id === itemId);
-            if (index > -1) {
-                selectedItems.splice(index, 1);
-                card.classList.remove('selected');
-            } else {
-                selectedItems.push({ menu_item_id: item.id, quantity: 1, price: item.price, notes: '' });
-                card.classList.add('selected');
-            }
-        }
-
-        document.getElementById('newOrderForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (selectedItems.length === 0) { alert('Pilih minimal 1 menu!'); return; }
-            const orderData = {
-                table_number: document.getElementById('tableNumber').value,
-                customer_name: document.getElementById('customerName').value || 'Guest',
-                user_id: user.id || 1,
-                order_type: document.getElementById('orderType').value,
-                items: selectedItems,
-                notes: document.getElementById('orderNotes').value || ''
-            };
-            try {
-                const response = await fetch(`${API_BASE}/orders.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData)
-                });
-                const result = await response.json();
-                if (result.success) {
-                    alert('Order berhasil dibuat! #' + result.data.order_number);
-                    closeNewOrderModal();
-                    fetchOrders();
-                } else alert('Error: ' + result.message);
-            } catch (error) { console.error('Error:', error); alert('Gagal membuat order'); }
-        });
-
-        async function updateOrderStatus(orderId, newStatus) {
-            try {
-                const response = await fetch(`${API_BASE}/orders.php?id=${orderId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus })
-                });
-                const result = await response.json();
-                if (result.success) { alert(`Status: ${newStatus}`); fetchOrders(); }
-                else alert('Error: ' + result.message);
-            } catch (error) { console.error('Error:', error); }
-        }
-
-        async function cancelOrder(orderId) {
-            if (confirm('Yakin batal?')) {
-                try {
-                    const response = await fetch(`${API_BASE}/orders.php?id=${orderId}`, { method: 'DELETE' });
-                    const result = await response.json();
-                    if (result.success) { alert('Order dibatalkan'); fetchOrders(); }
-                    else alert('Error: ' + result.message);
-                } catch (error) { console.error('Error:', error); }
-            }
-        }
-
-        function formatCurrency(amount) { return 'Rp ' + amount.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
-        function formatTime(datetime) {
-            if (!datetime) return '-';
-            const date = new Date(datetime);
-            return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        }
-        function logout() { if (confirm('Logout?')) { localStorage.removeItem('user'); window.location.href = 'index.html'; } }
-
-        fetchOrders();
-        fetchMenuItems();
-        setInterval(() => { fetchOrders(); }, 15000);
-    // Tambahkan script ini di orders.html sebelum closing </body> tag
-
-// DEBUG: Test API Menu
-async function debugMenuAPI() {
-    console.log('=== DEBUG: Testing Menu API ===');
-    
-    try {
-        const response = await fetch('/api/menu.php');
-        console.log('Response status:', response.status);
-        console.log('Response ok:', response.ok);
-        
-        const data = await response.json();
-        console.log('Response data:', data);
-        
-        if (data.success && data.data && data.data.length > 0) {
-            console.log('✓ API working! Found', data.data.length, 'menu items');
-            console.log('Sample menu:', data.data[0]);
-            return true;
-        } else if (data.success && data.data && data.data.length === 0) {
-            console.error('✗ API working but NO menu items found!');
-            console.error('Please run: php add-sample-menu.php');
-            return false;
-        } else {
-            console.error('✗ API error:', data);
-            return false;
-        }
-    } catch (error) {
-        console.error('✗ Fetch error:', error);
-        return false;
-    }
-}
-
-// DEBUG: Test Categories API
-async function debugCategoriesAPI() {
-    console.log('=== DEBUG: Testing Categories API ===');
-    
-    try {
-        const response = await fetch('/api/menu.php?resource=categories');
-        console.log('Response status:', response.status);
-        
-        const data = await response.json();
-        console.log('Categories data:', data);
-        
-        if (data.success && data.data && data.data.length > 0) {
-            console.log('✓ Found', data.data.length, 'categories');
-            return true;
-        } else {
-            console.error('✗ No categories found!');
-            return false;
-        }
-    } catch (error) {
-        console.error('✗ Categories fetch error:', error);
-        return false;
-    }
-}
-
-// Jalankan debug saat halaman load
-window.addEventListener('DOMContentLoaded', async () => {
-    console.log('=== ORDERS PAGE LOADED ===');
-    console.log('Current URL:', window.location.href);
-    
-    // Test APIs
-    await debugMenuAPI();
-    await debugCategoriesAPI();
-    
-    console.log('=== DEBUG COMPLETE ===');
-});
-
-// Fungsi manual untuk test dari console
-window.testMenuAPI = debugMenuAPI;
-window.testCategoriesAPI = debugCategoriesAPI;
-
-// Tambahkan log untuk melihat apakah menu select ter-render
-const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        if (mutation.addedNodes.length) {
-            mutation.addedNodes.forEach((node) => {
-                if (node.id === 'menuSelect' || node.name === 'menu_id') {
-                    console.log('✓ Menu select element added to DOM:', node);
-                }
+            
+            container.innerHTML = '<div class="orders-grid"></div>';
+            const grid = container.querySelector('.orders-grid');
+            
+            orders.forEach(order => {
+                const card = createOrderCard(order);
+                grid.appendChild(card);
             });
         }
-    });
-});
 
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
-</body>
-</html>
+        // Create order card
+        function createOrderCard(order) {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            
+            const statusClass = `status-${order.status.toLowerCase()}`;
+            
+            card.innerHTML = `
+                <div class="order-header">
+                    <div class="order-number">${order.order_number || 'N/A'}</div>
+                    <span class="status-badge ${statusClass}">${order.status}</span>
+                </div>
+                <div class="order-info">
+                    <div class="order-info-item">
+                        <span class="order-info-label">Tipe:</span>
+                        <span class="order-info-value">${order.order_type}</span>
+                    </div>
+                    ${order.table_number ? `
+                    <div class="order-info-item">
+                        <span class="order-info-label">Meja:</span>
+                        <span class="order-info-value">${order.table_number}</span>
+                    </div>
+                    ` : ''}
+                    ${order.customer_name ? `
+                    <div class="order-info-item">
+                        <span class="order-info-label">Pelanggan:</span>
+                        <span class="order-info-value">${order.customer_name}</span>
+                    </div>
+                    ` : ''}
+                    <div class="order-info-item">
+                        <span class="order-info-label">Items:</span>
+                        <span class="order-info-value">${order.item_count} item</span>
+                    </div>
+                    <div class="order-info-item">
+                        <span class="order-info-label">Waktu:</span>
+                        <span class="order-info-value">${formatDateTime(order.created_at)}</span>
+                    </div>
+                </div>
+                <div class="order-total">
+                    Total: Rp ${formatNumber(order.total)}
+                </div>
+                <div class="order-actions">
+                    ${order.status === 'Pending' ? `
+                        <button class="btn btn-success" onclick="updateOrderStatus(${order.id}, 'Preparing')">
+                            <i class="fas fa-fire"></i> Process
+                        </button>
+                    ` : ''}
+                    ${order.status === 'Preparing' ? `
+                        <button class="btn btn-success" onclick="updateOrderStatus(${order.id}, 'Ready')">
+                            <i class="fas fa-check"></i> Ready
+                        </button>
+                    ` : ''}
+                    ${order.status === 'Ready' ? `
+                        <button class="btn btn-success" onclick="updateOrderStatus(${order.id}, 'Completed')">
+                            <i class="fas fa-check-double"></i> Complete
+                        </button>
+                    ` : ''}
+                    ${order.status !== 'Completed' && order.status !== 'Cancelled' ? `
+                        <button class="btn btn-danger" onclick="cancelOrder(${order.id})">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Filter by status
+        function filterByStatus(status) {
+            currentStatusFilter = status;
+            
+            // Update active tab
+            document.querySelectorAll('.status-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadOrders();
+        }
+
+        // Search orders
+        function searchOrders() {
+            const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
+            
+            if (searchTerm === '') {
+                displayOrders(allOrders);
+                return;
+            }
+            
+            const filtered = allOrders.filter(order => 
+                (order.order_number && order.order_number.toLowerCase().includes(searchTerm)) ||
+                (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm)) ||
+                (order.table_number && order.table_number.toLowerCase().includes(searchTerm))
+            );
+            
+            displayOrders(filtered);
+        }
+
+        // Update order status
+        async function updateOrderStatus(orderId, newStatus) {
+            if (!confirm(`Ubah status order menjadi ${newStatus}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/orders.php?id=${orderId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Status order berhasil diupdate!');
+                    loadOrders();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Cancel order
+        async function cancelOrder(orderId) {
+            if (!confirm('Yakin ingin membatalkan order ini?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/orders.php?id=${orderId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Order berhasil dibatalkan!');
+                    loadOrders();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Open new order modal
+        function openNewOrderModal() {
+            document.getElementById('newOrderModal').classList.add('active');
+            loadMenuItems();
+        }
+
+        // Close new order modal
+        function closeNewOrderModal() {
+            document.getElementById('newOrderModal').classList.remove('active');
+            document.getElementById('newOrderForm').reset();
+            selectedMenuItems = [];
+            updateSelectedItemsDisplay();
+        }
+
+        // Add menu item to order
+        function addMenuItem() {
+            const menuSelect = document.getElementById('menuSelect');
+            const quantityInput = document.getElementById('menuQuantity');
+            
+            const selectedOption = menuSelect.options[menuSelect.selectedIndex];
+            
+            if (!selectedOption.value) {
+                alert('Pilih menu terlebih dahulu!');
+                return;
+            }
+            
+            const menuId = parseInt(selectedOption.value);
+            const menuName = selectedOption.dataset.name;
+            const price = parseFloat(selectedOption.dataset.price);
+            const quantity = parseInt(quantityInput.value) || 1;
+            
+            // Check if item already exists
+            const existingIndex = selectedMenuItems.findIndex(item => item.menu_item_id === menuId);
+            
+            if (existingIndex !== -1) {
+                selectedMenuItems[existingIndex].quantity += quantity;
+            } else {
+                selectedMenuItems.push({
+                    menu_item_id: menuId,
+                    name: menuName,
+                    price: price,
+                    quantity: quantity
+                });
+            }
+            
+            // Reset selection
+            menuSelect.selectedIndex = 0;
+            quantityInput.value = 1;
+            
+            updateSelectedItemsDisplay();
+        }
+
+        // Remove menu item
+        function removeMenuItem(index) {
+            selectedMenuItems.splice(index, 1);
+            updateSelectedItemsDisplay();
+        }
+
+        // Update selected items display
+        function updateSelectedItemsDisplay() {
+            const container = document.getElementById('selectedItems');
+            
+            if (selectedMenuItems.length === 0) {
+                container.innerHTML = '<p style="color: #7f8c8d; text-align: center;">Belum ada menu dipilih</p>';
+                updateOrderSummary();
+                return;
+            }
+            
+            container.innerHTML = '';
+            selectedMenuItems.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'selected-item';
+                itemDiv.innerHTML = `
+                    <div class="selected-item-info">
+                        <div class="selected-item-name">${item.name} x${item.quantity}</div>
+                        <div class="selected-item-price">Rp ${formatNumber(item.price * item.quantity)}</div>
+                    </div>
+                    <button class="selected-item-remove" onclick="removeMenuItem(${index})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(itemDiv);
+            });
+            
+            updateOrderSummary();
+        }
+
+        // Update order summary
+        function updateOrderSummary() {
+            const subtotal = selectedMenuItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const tax = subtotal * 0.10;
+            const service = subtotal * 0.05;
+            const total = subtotal + tax + service;
+            
+            document.getElementById('summarySubtotal').textContent = 'Rp ' + formatNumber(subtotal);
+            document.getElementById('summaryTax').textContent = 'Rp ' + formatNumber(tax);
+            document.getElementById('summaryService').textContent = 'Rp ' + formatNumber(service);
+            document.getElementById('summaryTotal').textContent = 'Rp ' + formatNumber(total);
